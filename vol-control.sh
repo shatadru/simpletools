@@ -9,8 +9,12 @@ if [ -z "$whattodo" ]
 	exit
 else
 
-
-	if [ $whattodo == "increase" ]
+	if [ \( $whattodo ==  "--help" \) -o \( $whattodo == "-h" \) ]
+	then
+	echo "Usage:"
+	echo 'vol-control.sh [mute|increase|decrease]'
+	exit
+	elif [ $whattodo == "increase" ]
 	then 
 		set_vol=$(($curr_vol+20))
 	elif [ $whattodo == "decrease" ]

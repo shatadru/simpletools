@@ -1,4 +1,7 @@
 #!/bin/bash
+# The function was taken from : http://unix.stackexchange.com/questions/2881/show-a-notification-across-all-running-x-displays/230062#230062
+# Credit : Josef Kufner : http://unix.stackexchange.com/users/93227/josef-kufner
+# Author : Shatadru Bandyopadhyay 
 function nott() {
 /bin/grep -sozZe '^DBUS_SESSION_BUS_ADDRESS=[a-zA-Z0-9:=,/-]*$' /proc/*/environ \
 | /usr/bin/php -r '

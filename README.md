@@ -18,4 +18,12 @@ Command : /bin/vol-control.sh increase
 Name : Volume Mute
 Command : /bin/vol-control.sh mute
 ~~~
-- notifyatlogin  : Log user login  
+- notifyatlogin  : Log user logins and see notification everytime a remote user logs in. 
+~~~
+Save this script in /usr/bin or /bin, set execute permission and create keyboard shortut 
+Add below lines in /etc/profile :
+
+# Notification at login 
+IP="$(echo $SSH_CONNECTION | cut -d " " -f 1)"
+/usr/bin/notifyatlogin $IP
+~~~

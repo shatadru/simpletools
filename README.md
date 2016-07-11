@@ -23,7 +23,17 @@ Command : /bin/vol-control.sh mute
 Save this script in /usr/bin or /bin, set execute permission and create keyboard shortut 
 Add below lines in /etc/profile :
 
-# Notification at login 
+####### Notification at login #############
 IP="$(echo $SSH_CONNECTION | cut -d " " -f 1)"
 /usr/bin/notifyatlogin $IP
+#########################################
+The default bahavour is it logs into system logs using logger and /var/log/login_history.
+
+Additionally in case of a remote ssh login, where the $IP will be passed from /etc/profile, it will send a GUI notification using notify-send.
+
+In case that does not work for you enable a wall message which should always work (Just remove the comment)
+
+You can even enable notification for local login.
+
+The script is easy to read so you should be able to modify it without any issue.
 ~~~

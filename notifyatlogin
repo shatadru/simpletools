@@ -18,7 +18,8 @@
 # 11 Jul 2016, Mon 06:00:39 AM IST : Remote Login from 10.10.10.10 as USER: root
 #~~~
 #
-# So ideally this should be placed in /etc/profile
+# So ideally this should be placed in or called from /etc/profile, see below for details :
+# https://github.com/shatadru/simpletools/blob/master/README.md
 #
 function nott() {
 /bin/grep -sozZe '^DBUS_SESSION_BUS_ADDRESS=[a-zA-Z0-9:=,/-]*$' /proc/*/environ \

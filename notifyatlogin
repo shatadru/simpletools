@@ -2,6 +2,24 @@
 # The function was taken from : http://unix.stackexchange.com/questions/2881/show-a-notification-across-all-running-x-displays/230062#230062
 # Credit : Josef Kufner : http://unix.stackexchange.com/users/93227/josef-kufner
 # Author : Shatadru Bandyopadhyay 
+# Usage  : notifyatlogin  
+#        : notifyatlogin <IP>
+# What it does ?
+# It logs user login using logger and also saves data in /var/log/login_history
+# Additionally if <IP-address> is passed as argument which means that the ogin was from a remote system
+# It gives a pop up notification
+# Example : 
+# notifyatlogin
+#~~~
+# 11 Jul 2016, Mon 06:07:30 AM IST : Local User: root logged in 
+#~~~
+#notifyatlogin 10.10.10.10
+#~~~
+# 11 Jul 2016, Mon 06:00:39 AM IST : Remote Login from 10.10.10.10 as USER: root
+#~~~
+#
+# So ideally this should be placed in /etc/profile
+#
 function nott() {
 /bin/grep -sozZe '^DBUS_SESSION_BUS_ADDRESS=[a-zA-Z0-9:=,/-]*$' /proc/*/environ \
 | /usr/bin/php -r '
@@ -34,11 +52,11 @@ if [ -z $1 ]
 then
         echo "not set"
         logger "$NOW : Local User: $USER logged in"
-        echo   "$NOW : Local User: $USER logged in "  >> /var/log/sshlogin
+        echo   "$NOW : Local User: $USER logged in "  >> /var/log/login_history
 else
         echo "set"
         IP=$1
         nott "Remote Login from $IP as USER: $USER at $NOW"
         logger  "$NOW : Remote Login from $IP as USER: $USER"
-        echo    "$NOW : Remote Login from $IP as USER: $USER" >> /var/log/sshlogin
+        echo    "$NOW : Remote Login from $IP as USER: $USER" >> /var/log/login_history
 fi

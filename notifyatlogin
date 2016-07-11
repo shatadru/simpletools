@@ -51,13 +51,13 @@ USER=`whoami`
 
 if [ -z $1 ]
 then
-        echo "not set"
+        echo "LOCAL LOGIN"
 #       nott "Local User: $USER logged in at $NOW"
         logger "$NOW : Local User: $USER logged in"
         echo   "$NOW : Local User: $USER logged in "  >> /var/log/login_history
 #       wall   "$NOW : Local User: $USER logged in "
 else
-        echo "set"
+        echo "REMOTE SSH LOGIN"
         IP=$1
         nott "Remote Login from $IP as USER: $USER at $NOW"
         logger  "$NOW : Remote Login from $IP as USER: $USER"

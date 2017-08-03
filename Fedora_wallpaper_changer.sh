@@ -30,10 +30,9 @@
 
 
 
+ 
 
-USER=$(whoami)
-PID=$(pgrep -u $USER gnome-session)
-export DBUS_SESSION_BUS_ADDRESS=$(grep -z DBUS_SESSION_BUS_ADDRESS /proc/$PID/environ|cut -d= -f2-)
+
 
 
 #~~~~~~~~~~~~~~~~~~~~ Command Line Arg handling ~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -80,7 +79,7 @@ done
 function down_new_pic () {
 # check number of already present files and download remaining files....
 cd /var/lib/fedora-wallpaper/
-
+touch database
 fdupes -d -N ./
 num=$(ls|wc -l)
 
@@ -196,7 +195,11 @@ cp -f "$(readlink -f $0)" "/sbin/"
 
 
 function run () {
-echo run
+
+USER=$(whoami)
+PID=$(pgrep -u $USER gnome-session)
+export DBUS_SESSION_BUS_ADDRESS=$(grep -z DBUS_SESSION_BUS_ADDRESS /proc/$PID/environ|cut -d= -f2-)
+echo "Starting service..."
 
 # reading the config
 

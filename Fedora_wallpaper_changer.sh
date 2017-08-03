@@ -190,7 +190,7 @@ EOF
 echo "Copying the binary in /sbin"
 echo
 cp -f "$(readlink -f $0)" "/sbin/"
-
+chmod +x /sbin/$0
 }
 
 

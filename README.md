@@ -1,3 +1,33 @@
+-Fedora_wallpaper_changer.sh
+~~~
+What does it do ?
+
+Let's face it windows 10 does have some cool features when its comes to user interface, like everytime you get awesome wallpaper whenever you boot up the system.
+
+With this script you can use online API like unsplash to set awesome wallpapers based on your choice.
+
+You can use other APIs as well to retreive pics with little tweaking...
+
+Feel free to add features.
+
+Should ideally work in linux distros with GNOME 3 + systemd. but might need tweaking in other distros only tested in Fedora 25, 26
+~~~
+- How to install and run ?
+~~~
+# Fedora_wallpaper_changer.sh -s
+# systemctl daemon-reload
+# systemctl  fedora-wallpaper.service
+~~~
+- How to enable this on boot ?
+~~~
+#  systemctl enable fedora-wallpaper.service
+~~~
+- Config file ?
+~~~
+/etc/fedora_wallpaper_changer.conf
+~~~
+
+
 
 - vol-control.sh : don't have volume control keys ? set this shell scrip in shortcut to control volumes
 ~~~

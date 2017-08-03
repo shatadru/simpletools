@@ -191,6 +191,12 @@ echo "Copying the binary in /sbin"
 echo
 cp -f "$(readlink -f $0)" "/sbin/"
 chmod +x /sbin/$0
+
+echo "Ensuring we have correct permossions"
+mkdir -p /var/lib/fedora-wallpaper/
+touch /var/lib/fedora-wallpaper/database
+chmod 777 /var/lib/fedora-wallpaper
+chmod -R 666  /var/lib/fedora-wallpaper/*
 }
 
 

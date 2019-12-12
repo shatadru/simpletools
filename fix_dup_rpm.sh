@@ -51,7 +51,8 @@ for i in $(rpm -qa --qf "%{name}.%{arch}\n"|sort |uniq|egrep -iv "kernel|glibc|g
     if [ "$dryrun" == "1" ]; then
 
       echo "Listing duplicates for $i ..."  |tee -a $DIR/$FILENAME ;
-      rpm -q $i; echo ---------------   |tee -a $DIR/$FILENAME ;
+      rpm -q $i |tee -a $DIR/$FILENAME ;
+      echo ---------------   |tee -a $DIR/$FILENAME ;
       echo "$rpm will be removed" |tee -a $DIR/$FILENAME
       echo "============================" |tee -a $DIR/$FILENAME
     else
@@ -59,8 +60,8 @@ for i in $(rpm -qa --qf "%{name}.%{arch}\n"|sort |uniq|egrep -iv "kernel|glibc|g
       count_rm=$((count_rm+1))
       rpm -ev --nodeps $rpm && echo "$rpm removed successfully"|tee -a $DIR/$FILENAME  || echo "$rpm remove failed"|tee -a $DIR/$FILENAME ;
       echo "Checking list after removal..."  |tee -a $DIR/$FILENAME ;
-      rpm -q $i;
-      echo "============================"|tee -a $DIR/$FILENAME
+      rpm -q $i |tee -a $DIR/$FILENAME ; 
+      echo "============================"|tee -a $DIR/$FILENAME ; 
 
     fi
   else

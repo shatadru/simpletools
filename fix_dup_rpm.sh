@@ -62,7 +62,7 @@ for i in $(rpm -qa --qf "%{name}.%{arch}\n"|sort |uniq|egrep -iv "kernel|glibc|g
   fi 
   done
 
-    if [ "$dryrun" == "0" ] ||  ; then
+    if [ "$dryrun" == "0" ]  ; then
 	echo "Running package-cleanup --dupes after cleanup..."
 	package-cleanup --dupes
     fi

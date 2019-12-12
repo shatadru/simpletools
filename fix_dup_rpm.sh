@@ -9,7 +9,7 @@ count_rm=0
 # Command line arg handling #
 tempdirname=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1`
 mkdir /tmp/$tempdirname/
-DIR="/tmp/$tempdirname/"
+DIR="/tmp/$tempdirname"
 FILENAME="rpm-dup.txt"
 
 args=( "$@" )

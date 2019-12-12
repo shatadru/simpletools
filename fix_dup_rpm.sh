@@ -14,7 +14,7 @@ for i in $(rpm -qa --qf "%{name}.%{arch}\n"|sort |uniq|egrep -iv "kernel|glibc|g
     echo ------------- ; 
     rpm=`rpm -q $i|sort|head -1` ; 
     echo "Attempting to remove $rpm ..." ; 
-    rpm -ev --nodeps $rpm && echo "$rpm remove successfully" || echo "$rpm remove failed"; 
+    rpm -ev --nodeps $rpm && echo "$rpm removed successfully" || echo "$rpm remove failed"; 
     echo "Checking list after removal..." $i ; 
     rpm -q $i; echo ---------------   ; 
   else 

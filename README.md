@@ -1,42 +1,11 @@
 #### fix_dup_rpm.sh
 
 - Can be used to remove duplicate rpms if package-cleanup is failing
-- Options 
-- Syntax: 
-  fix_dup_rpm.sh [-v][-d]
- -d/--dry-run: Dry Run, do not make any changes, checks for duplicates, lists rpms need which will be removed. 
- -v/--verbose: Prints verbose log
-
-#### Fedora_wallpaper_changer.sh
-
-- What does it do ?
-
-   1. Let's face it windows 10 does have some cool features when its comes to user interface, like everytime you get awesome wallpaper whenever you boot up the system.
-
-   2. With this script you can use online API like unsplash to set awesome wallpapers based on your choice.
-
-   3. You can use other APIs as well to retrieve pics with little tweaking...
-
-   4. Feel free to add features.
-
-   5. Should ideally work in linux distros with GNOME 3 + systemd. but might need tweaking in other distros only tested in Fedora 25, 26
-
-
-- How to install and run ?
 ~~~
-# Fedora_wallpaper_changer.sh -s
-# systemctl daemon-reload
-# systemctl  fedora-wallpaper.service
+Syntax:  fix_dup_rpm.sh [-v][-d]
+         -d/--dry-run: Dry Run, do not make any changes, checks for duplicates, lists rpms need which will be removed. 
+         -v/--verbose: Prints verbose log
 ~~~
-- How to enable this on boot ?
-~~~
-#  systemctl enable fedora-wallpaper.service
-~~~
-- Config file :
-~~~
-/etc/fedora_wallpaper_changer.conf
-~~~
-
 
 
 ### vol-control.sh : 
@@ -82,4 +51,34 @@ IP="$(echo $SSH_CONNECTION | cut -d " " -f 1)"
 5. You can even enable notification for local login.
 
 6. The script is easy to read so you should be able to modify it without any issue.
+
+#### Fedora_wallpaper_changer.sh
+
+- What does it do ?
+
+   1. Let's face it windows 10 does have some cool features when its comes to user interface, like everytime you get awesome wallpaper whenever you boot up the system.
+
+   2. With this script you can use online API like unsplash to set awesome wallpapers based on your choice.
+
+   3. You can use other APIs as well to retrieve pics with little tweaking...
+
+   4. Feel free to add features.
+
+   5. Should ideally work in linux distros with GNOME 3 + systemd. but might need tweaking in other distros only tested in Fedora 25, 26
+
+
+- How to install and run ?
+~~~
+# Fedora_wallpaper_changer.sh -s
+# systemctl daemon-reload
+# systemctl  fedora-wallpaper.service
+~~~
+- How to enable this on boot ?
+~~~
+#  systemctl enable fedora-wallpaper.service
+~~~
+- Config file :
+~~~
+/etc/fedora_wallpaper_changer.conf
+~~~
 

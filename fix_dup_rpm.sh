@@ -79,7 +79,7 @@ echo
 echo "Summary"
 echo "-----------"
 echo "Found $count_dup duplicate rpm(s)"
-if [ "$dryrun" == "0" ]   ; then
+if [ "$dryrun" == "1" ]   ; then
 	echo "DRY RUN MODE: No changes has been performed on the system..."
 else
 	echo "Removed $count_rm" rpms

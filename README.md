@@ -2,8 +2,10 @@
 
 - Can be used to remove duplicate rpms if package-cleanup is failing
 ~~~
-Syntax:  fix_dup_rpm.sh [-v][-d]
-         -d/--dry-run: Dry Run, do not make any changes, checks for duplicates, lists rpms need which will be removed. 
+Syntax:  bash fix_dup_rpm.sh [-v][-d]
+         -d/--dry-run: Dry Run, do not make any changes, checks for duplicates, 
+                       lists rpms need which will be removed. 
+                       
          -v/--verbose: Prints verbose log
 ~~~
 

@@ -78,7 +78,7 @@ for i in $(rpm -qa --qf "%{name}.%{arch}\n"|sort |uniq|egrep -iv "kernel|glibc|g
 echo
 echo "Summary"
 echo "-----------"
-echo "Found $count duplicate rpms"
+echo "Found $count_dup duplicate rpm(s)"
 if [ "$dryrun" == "0" ]   ; then
 	echo "DRY RUN MODE: No changes has been performed on the system..."
 else

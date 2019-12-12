@@ -1,10 +1,37 @@
 # Check for duplicate rpm and remove them ....
 #  skips glibc, kernel or gpg-pubkey
 
-verbose=0;
-if [ "$1" == "-v" ];then
-verbose=1;
-fi
+verbose=0
+verbose=0
+# Command line arg handling #
+
+args=( "$@" )
+numarg=$#
+argnum=$((numarg-1))
+
+for i in `seq 0 "$argnum"`
+	do
+	key=${args[$i]}
+	case $key in
+    		-h|--help)
+
+			help="1"
+		;;
+    		-d|--dry-run)
+
+			dryrun="1"
+		;;
+		-v|--verbose)
+
+			verbose="1"
+		;;
+
+ 		*)
+    		;;
+	esac
+done
+
+
 
 for i in $(rpm -qa --qf "%{name}.%{arch}\n"|sort |uniq|egrep -iv "kernel|glibc|gpg-pubkey" ) ; 
   do  
@@ -13,10 +40,17 @@ for i in $(rpm -qa --qf "%{name}.%{arch}\n"|sort |uniq|egrep -iv "kernel|glibc|g
     echo "dups detected: $i" ;
     echo ------------- ; 
     rpm=`rpm -q $i|sort|head -1` ; 
-    echo "Attempting to remove $rpm ..." ; 
-    rpm -ev --nodeps $rpm && echo "$rpm removed successfully" || echo "$rpm remove failed"; 
-    echo "Checking list after removal..." $i ; 
-    rpm -q $i; echo ---------------   ; 
+    if [ "$dryrun" == "1" ]; then
+      
+      echo "Checking list before removal..."  ; 
+      rpm -q $i; echo ---------------   ;      
+      echo "$rpm will be removed"
+    else
+      echo "Attempting to remove $rpm ..." ; 
+      rpm -ev --nodeps $rpm && echo "$rpm removed successfully" || echo "$rpm remove failed"; 
+      echo "Checking list after removal..."  ; 
+      rpm -q $i; echo ---------------   ; 
+    fi
   else 
     if [ "$verbose" == "1" ]; then
       echo "No dups found: $i" ; 
@@ -24,3 +58,8 @@ for i in $(rpm -qa --qf "%{name}.%{arch}\n"|sort |uniq|egrep -iv "kernel|glibc|g
     fi
   fi 
   done
+
+#
+echo "Running package-cleanup --dupes"
+package-cleanup --dupes
+

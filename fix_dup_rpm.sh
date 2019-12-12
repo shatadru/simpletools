@@ -42,14 +42,17 @@ for i in $(rpm -qa --qf "%{name}.%{arch}\n"|sort |uniq|egrep -iv "kernel|glibc|g
     rpm=`rpm -q $i|sort|head -1` ; 
     if [ "$dryrun" == "1" ]; then
       
-      echo "Checking list before removal..."  ; 
+      echo "Listing duplicates for $i ..."  ; 
       rpm -q $i; echo ---------------   ;      
       echo "$rpm will be removed"
+      echo "============================"
     else
       echo "Attempting to remove $rpm ..." ; 
       rpm -ev --nodeps $rpm && echo "$rpm removed successfully" || echo "$rpm remove failed"; 
       echo "Checking list after removal..."  ; 
-      rpm -q $i; echo ---------------   ; 
+      rpm -q $i; 
+      echo "============================"
+
     fi
   else 
     if [ "$verbose" == "1" ]; then
@@ -59,7 +62,8 @@ for i in $(rpm -qa --qf "%{name}.%{arch}\n"|sort |uniq|egrep -iv "kernel|glibc|g
   fi 
   done
 
-#
-echo "Running package-cleanup --dupes"
-package-cleanup --dupes
+    if [ "$dryrun" == "0" ] ||  ; then
+	echo "Running package-cleanup --dupes after cleanup..."
+	package-cleanup --dupes
+    fi
 

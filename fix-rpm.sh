@@ -2,7 +2,7 @@
 
 function rpmva(){
 	echo 'Collecting "rpm -Va" '
-#	rpm -Va 2> /dev/null  > /tmp/rpmva
+	rpm -Va 2> /dev/null  > /tmp/rpmva
 	rpmva="/tmp/rpmva"
 }
 function missing_file_rpm(){

@@ -4,7 +4,7 @@
 #           shatadru1@gmail.com
 # Supports : ubuntu, debian, Fedora, RHEL
 # Services tested so far
-# amazon.in
+# amazon.in + Fedora 30
 
 os=""
 fedora=0

@@ -14,16 +14,21 @@ debian=0
 args=( "$@" )
 numarg=$#
 argnum=$((numarg-1))
-image=""
-name=""
+install=""
 
 function pckg_check() {
 
         rpm -q $1 > /dev/null 2> /dev/null
         if [ "$?" -ne "0" ];then
                 echo Package : $1 Not found...
-                echo "Installing $1 package....";echo
-                install_command $1;echo
+                if [ "$install" == "1" ];then
+                        echo "Installing $1 package....";echo
+                        install_command $1;echo
+                else
+                        echo "Please install $1 package....";echo
+                        print_command $1;echo
+                fi
+                        
         fi
 
 }
@@ -50,6 +55,29 @@ esac
 
 
 }
+
+function print_command(){
+
+pckg=$1
+case $os in
+
+  fedora)
+   echo "dnf install $pckg -y"
+    ;;
+
+  ubuntu)
+   echo "apt-get install $pckg -y"
+    ;;
+
+  *)
+    echo "Install $pckg"
+    ;;
+esac
+
+
+
+}
+
 function extract_secret_from_image() {
         img=$1
         secret=$(/usr/bin/zbarimg  $img 2> /dev/null|grep -i secret=|cut -f2 -d "="  |cut -f "1" -d "&")
@@ -160,6 +188,7 @@ for i in `seq 0 "$argnum"`
 
         case $key in
                 -i|--install)
+                        install=1
                         install_main
                 ;;
                 -a|--add-key)

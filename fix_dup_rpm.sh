@@ -1,3 +1,7 @@
+#!/bin/bash:
+
+# Author : Shatadru Bandyopadhyay
+#           shatadru1@gmail.com
 # Check for duplicate rpm and remove them ....
 #  skips glibc, kernel or gpg-pubkey
 

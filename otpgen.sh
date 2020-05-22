@@ -170,9 +170,9 @@ function gen_key() {
                 list_keys
                 echo "Which key do you want to select?"
                 read a
-                secret=$(sed "${a}q;d" $HOME/otpgen/.secret_list|awk '{print $3}')
+                secret=$(sed "${a}q;d" $HOME/otpgen/.secret_list|awk '{print $2}')
         else
-                secret=$(sed "${index}q;d" $HOME/otpgen/.secret_list|awk '{print $3}')
+                secret=$(sed "${index}q;d" $HOME/otpgen/.secret_list|awk '{print $2}')
         fi
         token=$(oathtool --base32 --totp "$secret")
         echo $token

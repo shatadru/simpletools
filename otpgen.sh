@@ -130,13 +130,19 @@ fi
 
 }
 function remove_key(){
-sleep 1
+all=$1
 }
 
 function list_keys() {
 check_install
-cat $HOME/otpgen/.secret_list|awk '{print $1,$2}'
+line=$(wc -l $HOME/otpgen/.secret_list |awk '{print $1}')
+if [ $line == "0" ];
+then 
+	echo "No keys installed, use -a or --add-key to install"
+else
 
+	cat $HOME/otpgen/.secret_list|awk '{print $1,$2}'
+fi
 }
 function check_install(){
 if [ -d "$HOME/otpgen" ];then
@@ -148,6 +154,8 @@ fi
 
 
 function clean_install(){
+echo "This will remove all existing keys, Press any key to continue, Ctrl+C to exit ..."
+read a
 mv $HOME/otpgen /var/tmp
 install_main
 }
@@ -168,12 +176,11 @@ function gen_key() {
         fi
         token=$(oathtool --base32 --totp "$secret")
         echo $token
+	printf $token|xclip -sel clip
 
 
 }
 
-#token=$(gen_key)
-#printf $token|xclip -sel clip
 
 detect_os
 
@@ -198,7 +205,7 @@ for i in `seq 0 "$argnum"`
 
                         remove_key $key2
                 ;;
-                -l|--list_key)
+                -l|--list-key)
 
                         list_keys
                 ;;
@@ -206,6 +213,11 @@ for i in `seq 0 "$argnum"`
 
                         check_install
                 ;;
+
+                --clean-install)
+
+                        clean_install
+		;;
                 -g|--gen-key)
                         gen_key $key2
                 ;;
@@ -215,4 +227,3 @@ for i in `seq 0 "$argnum"`
                 ;;
         esac
 done
-

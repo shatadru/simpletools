@@ -156,6 +156,7 @@ fi
 function clean_install(){
 echo "This will remove all existing keys, Press any key to continue, Ctrl+C to exit ..."
 read a
+rm -rf /var/tmp/otpgen
 mv $HOME/otpgen /var/tmp
 install_main
 }

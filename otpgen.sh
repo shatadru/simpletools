@@ -63,7 +63,7 @@ function check_version () {
 SCRIPT=$(readlink -f "$0")
 md5sum_local=$(md5sum $SCRIPT|awk '{print $1}')
 mkdir -p /tmp/$tempdirname
-curl -s https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen.sh > /tmp/$tempdirname/otpgen.sh
+curl -s -H 'Cache-Control: no-cache'  https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen.sh > /tmp/$tempdirname/otpgen.sh
 
 md5sum_remote=$(md5sum /tmp/$tempdirname/otpgen.sh|awk '{print $1}')
 

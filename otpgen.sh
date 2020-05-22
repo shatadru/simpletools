@@ -6,6 +6,7 @@
 # Services tested so far
 # amazon.in + Fedora 30
 
+export HOME=$(bash <<< "echo ~${SUDO_USER:-}")
 os=""
 fedora=0
 ubunu=0
@@ -14,8 +15,30 @@ debian=0
 args=( "$@" )
 numarg=$#
 argnum=$((numarg-1))
-install=""
+install=0
+root=0
+fail_install=0
 
+function check_root(){
+if [[ $EUID -ne 0 ]]; then
+   install=0
+   root=0
+else
+   install=1
+   root=1
+fi
+}
+function fatal_error() {
+echo -e "\e[31m\e[1m Fatal Error \e[0m: $1"
+exit 255
+}
+
+function warning() {
+echo -e "\e[33m\e[1m Warning \e[0m: $1 "
+}
+function success() {
+echo -e "\e[32m\e[1m Success \e[0m: $1 "
+}
 function pckg_check() {
 
         rpm -q $1 > /dev/null 2> /dev/null
@@ -27,6 +50,7 @@ function pckg_check() {
                 else
                         echo "Please install $1 package....";echo
                         print_command $1;echo
+			fail_install=1
                 fi
                         
         fi
@@ -62,11 +86,11 @@ pckg=$1
 case $os in
 
   fedora)
-   echo "dnf install $pckg -y"
+   echo "  # dnf install $pckg -y"
     ;;
 
   ubuntu)
-   echo "apt-get install $pckg -y"
+   echo "  # apt-get install $pckg -y"
     ;;
 
   *)
@@ -103,9 +127,20 @@ function install_pckgs() {
         pckg_check zbar
 }
 function install_main() {
+	echo -en "Checking for required packages.";sleep 1; echo -en "." ; sleep 1 ; echo -en "."
         install_pckgs
-        mkdir -p $HOME/otpgen
-        touch  $HOME/otpgen/.secret_list
+	echo
+	if [ "$fail_install" == "1" ];then
+	fatal_error "Please install required packages before proceeding."
+	fi
+	if [ -d "$HOME/otpgen" ];then
+        	fatal_error "otpgen Already installed. You can re-install using --clean-install"
+	else
+		echo "Creating required file"
+        	mkdir -p $HOME/otpgen
+        	touch  $HOME/otpgen/.secret_list
+		success "Installation successful"
+	fi
 }
 
 function add_key(){
@@ -113,12 +148,11 @@ image=$1
 name=$2
 
 if [ -z $image ]; then
-        echo "Image file not supplied, please add a image file containing QR Code"
-        exit
+        fatal_error "Image file not supplied, please add a image file containing QR Code"
 fi
 
 if [ ! -f $image ]; then
-        echo "Image not found, cant add key..."
+        fatal_error "File not found, cant add key..."
 fi
 
 
@@ -146,18 +180,19 @@ fi
 }
 function check_install(){
 if [ -d "$HOME/otpgen" ];then
-        echo "Seems otpgen installed"
+        echo "otpgen installed"
+	return 0
 else
-        echo "Seems otpgen is not installed"
+        fatal_error "Seems otpgen is not installed, please install using -i/--install"
+	
 fi
 }
 
 
 function clean_install(){
-echo "This will remove all existing keys, Press any key to continue, Ctrl+C to exit ..."
+warning "This will remove all existing keys, Press any key to continue, Ctrl+C to exit ..."
 read a
-rm -rf /var/tmp/otpgen
-mv $HOME/otpgen /var/tmp
+rm -rf $HOME/otpgen 
 install_main
 }
 
@@ -184,7 +219,7 @@ function gen_key() {
 
 
 detect_os
-
+check_root
 
 # Command line arg handling...
 
@@ -196,7 +231,6 @@ for i in `seq 0 "$argnum"`
 
         case $key in
                 -i|--install)
-                        install=1
                         install_main
                 ;;
                 -a|--add-key)

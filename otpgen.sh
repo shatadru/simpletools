@@ -37,6 +37,7 @@ argnum=$((numarg-1))
 install=0
 root=0
 fail_install=0
+tempdirname=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1`
 
 function check_root(){
 if [[ $EUID -ne 0 ]]; then
@@ -57,6 +58,22 @@ echo -e "\e[33m\e[1m Warning \e[0m: $1 "
 }
 function success() {
 echo -e "\e[32m\e[1m Success \e[0m: $1 "
+}
+function check_version () {
+SCRIPT=$(readlink -f "$0")
+md5sum_local=$(md5sum $SCRIPT|awk '{print $1}')
+mkdir -p /tmp/$tempdirname
+curl -s https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen.sh > /tmp/$tempdirname/otpgen.sh
+
+md5sum_remote=$(md5sum /tmp/$tempdirname/otpgen.sh|awk '{print $1}')
+
+if [ "$md5sum_local" == "$md5sum_remote" ] ; then 
+	sucess "The script is at latest available version"
+else
+	warning "Using older version of script"
+	echo "Get latest source at https://github.com/shatadru/simpletools/blob/master/otpgen.sh"
+fi
+
 }
 function pckg_check() {
 
@@ -236,7 +253,7 @@ function gen_key() {
 
 }
 
-
+check_version
 detect_os
 check_root
 

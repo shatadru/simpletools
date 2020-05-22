@@ -1,3 +1,7 @@
+#### otpgen.sh
+
+https://shatadru.in/wordpress/how-to-configure-two-step-authenticator-in-linux-shellgoogle-authenticator-freeotp-alternative/
+
 #### fix_dup_rpm.sh
 
 - Can be used to remove duplicate rpms if package-cleanup is failing

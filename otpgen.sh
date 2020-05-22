@@ -68,7 +68,7 @@ curl -s https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen.sh 
 md5sum_remote=$(md5sum /tmp/$tempdirname/otpgen.sh|awk '{print $1}')
 
 if [ "$md5sum_local" == "$md5sum_remote" ] ; then 
-	sucess "The script is at latest available version"
+	success "The script is at latest available version"
 else
 	warning "Using older version of script"
 	echo "Get latest source at https://github.com/shatadru/simpletools/blob/master/otpgen.sh"

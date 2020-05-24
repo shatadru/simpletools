@@ -1,5 +1,4 @@
-#!/bin/bash:
-
+#!/bin/bash
 # Author : Shatadru Bandyopadhyay
 #           shatadru1@gmail.com
 # Supports : Fedora, Ubuntu (more to be added)
@@ -25,6 +24,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+
+## Variable declarations :
+
+version="0.5-0"
+
+if [ ! -z "$SUDO_USER" ] ; then
+        export USER=$SUDO_USER
+else
+        export USER=$(whoami)
+fi
+
 export HOME=$(bash <<< "echo ~${SUDO_USER:-}")
 os=""
 fedora=0
@@ -38,6 +48,10 @@ install=0
 root=0
 fail_install=0
 tempdirname=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1`
+qr_secret=""
+qr_type=""
+qr_issuer=""
+qr_user=""
 
 function check_root(){
 if [[ $EUID -ne 0 ]]; then
@@ -53,6 +67,9 @@ echo -e "\e[31m\e[1m Fatal Error \e[0m: $1"
 exit 255
 }
 
+function info() {
+echo -e "\e[34m\e[1m Info \e[0m: $1"
+}
 function warning() {
 echo -e "\e[33m\e[1m Warning \e[0m: $1 "
 }
@@ -60,19 +77,28 @@ function success() {
 echo -e "\e[32m\e[1m Success \e[0m: $1 "
 }
 function check_version () {
-SCRIPT=$(readlink -f "$0")
-md5sum_local=$(md5sum $SCRIPT|awk '{print $1}')
-mkdir -p /tmp/$tempdirname
-curl -s -H 'Cache-Control: no-cache'  https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen.sh > /tmp/$tempdirname/otpgen.sh
+	info "Checking for updates of otpgen.sh"
+	SCRIPT=$(readlink -f "$0")
+	md5sum_local=$(md5sum $SCRIPT|awk '{print $1}')
+	mkdir -p /tmp/$tempdirname
+	curl -s -H 'Cache-Control: no-cache'  https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen.sh > /tmp/$tempdirname/otpgen.sh 
+	curl_error=$?
+	
+	if [ "$curl_error" == "0" ]; then
 
-md5sum_remote=$(md5sum /tmp/$tempdirname/otpgen.sh|awk '{print $1}')
+		md5sum_remote=$(md5sum /tmp/$tempdirname/otpgen.sh|awk '{print $1}')
 
-if [ "$md5sum_local" == "$md5sum_remote" ] ; then 
-	success "The script is at latest available version"
-else
-	warning "Using older version of script"
-	echo "Get latest source at https://github.com/shatadru/simpletools/blob/master/otpgen.sh"
-fi
+		if [ "$md5sum_local" == "$md5sum_remote" ] ; then 
+			success "The script is at latest available version"
+		else
+			warning "Using older version of script"
+			info "Get latest source at https://github.com/shatadru/simpletools/blob/master/otpgen.sh"
+		fi
+	else	
+		warning "Unable to get check for update, curl failed" 
+		curl_error_meaning=$(man curl|grep -i -A176 "exit codes"|awk '$1=='$curl_error'{print}')
+		echo " Curl Error: $curl_error_meaning" 
+	fi
 
 }
 function pckg_check() {
@@ -86,6 +112,7 @@ function pckg_check() {
                 else
                         echo "Please install $1 package....";echo
                         print_command $1;echo
+			info "If you have sudo priviledge you can run this command with sudo"
 			fail_install=1
                 fi
                         
@@ -138,10 +165,40 @@ esac
 
 }
 
+function urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
+
+
 function extract_secret_from_image() {
         img=$1
-        secret=$(/usr/bin/zbarimg  $img 2> /dev/null|grep -i secret=|cut -f2 -d "="  |cut -f "1" -d "&")
-        echo $secret
+	out=$(/usr/bin/zbarimg  $img  2> /tmp/.$tempdirname-error)
+	zbar_exit=$?
+	if [ "$zbar_exit" ==  "0" ]; then 
+		
+		decode=`urldecode $(echo $out)`
+        	qr_secret=$(echo $decode|grep -i secret=|cut -f2 -d "="  |cut -f "1" -d "&")
+		qr_issuer=$(echo $decode|grep -i secret=|cut -f3 -d "=")
+		qr_user=$(echo $decode|grep -i secret=|cut -f4 -d "/"|cut -f2 -d ":"|cut -f1 -d "?")
+		qr_type=$(echo $decode|grep -i secret=|cut -f3 -d "/")
+		
+        	return 0
+	elif [ "$zbar_exit" ==  "1" ]; then
+		echo "An error occured while processing image";echo
+		cat /tmp/.$tempdirname-error
+		fatal_error "An error occurred while processing some image(s). This includes bad arguments, I/O errors and image handling errors from ImageMagick."
+	elif [ "$zbar_exit"  ==  "2" ]; then
+		echo "An error occured while processing image";echo
+		cat /tmp/.$tempdirname-error
+		fatal_error "ImageMagick fatal error."
+		return 1
+	elif [ "$zbar_exit"  ==  "4" ]; then
+		echo "An error occured while processing image";echo
+		cat /tmp/.$tempdirname-error
+		fatal_error "No barcode was detected in supplied image.."
+		return 1
+	else 
+		fatal_error "Unhandled error from zbarimg while processing image"
+		return 1
+	fi
 }
 
 
@@ -172,10 +229,15 @@ function install_main() {
 	if [ -d "$HOME/otpgen" ];then
         	fatal_error "otpgen Already installed. You can re-install using --clean-install"
 	else
-		echo "Creating required file"
-        	mkdir -p $HOME/otpgen
-        	touch  $HOME/otpgen/.secret_list
-		success "Installation successful"
+		echo "Creating required files"
+        	mkdir -p $HOME/otpgen||failed=1
+		touch  $HOME/otpgen/.secret_list||failed=1
+        	chown -R $USER:$USER $HOME/otpgen||failed=1
+		if [  -z "$failed" ]; then
+			success "Installation successful"
+		else
+			fatal_error "Unhandled Error, probably permission issues(?), You can re-install using --clean-install"
+		fi
 	fi
 }
 
@@ -191,16 +253,27 @@ if [ ! -f $image ]; then
         fatal_error "File not found, cant add key..."
 fi
 
+echo -en "Detecting QR Code from supplied image.";sleep 1; echo -en "." ; sleep 1 ; echo -en "."; echo
 
-        secret_val=$(extract_secret_from_image $image)
-        num_lines=$(cat  $HOME/otpgen/.secret_list|wc -l)
+extract_secret_from_image $image
+exit_stat=$?
 
-        echo "$((num_lines+1)) $name $secret_val" >> $HOME/otpgen/.secret_list
-        echo "Key added successfully"
+if [ "$exit_stat" != "0" ]; then
+	fatal_error "Failed to detect usable QR Code..."
+
+fi 
+
+if [ "$qr_type" != "totp" ]; then
+	fatal_error "OTP type unsupported! Only TOTP is supported"
+fi
+secret_val=$qr_secret
+num_lines=$(cat  $HOME/otpgen/.secret_list|wc -l)
+echo "$((num_lines+1)) $name $secret_val  $qr_type  $qr_issuer  $qr_user" >> $HOME/otpgen/.secret_list
+success "Key added successfully"
 
 }
 function remove_key(){
-all=$1
+fatal_error "Feature is not implemented yet...."
 }
 
 function list_keys() {
@@ -208,15 +281,15 @@ check_install
 line=$(wc -l $HOME/otpgen/.secret_list |awk '{print $1}')
 if [ $line == "0" ];
 then 
-	echo "No keys installed, use -a or --add-key to install"
+	info "No keys installed, use -a or --add-key to install"
 else
-
-	cat $HOME/otpgen/.secret_list|awk '{print $1,$2}'
+	echo "ID                                               Secret  TYPE  ISSUER  USER "
+	cat $HOME/otpgen/.secret_list
 fi
 }
 function check_install(){
 if [ -d "$HOME/otpgen" ];then
-        echo "otpgen installed"
+        info "otpgen installed"
 	return 0
 else
         fatal_error "Seems otpgen is not installed, please install using -i/--install"
@@ -226,10 +299,10 @@ fi
 
 
 function clean_install(){
-warning "This will remove all existing keys, Press any key to continue, Ctrl+C to exit ..."
-read a
-rm -rf $HOME/otpgen 
-install_main
+	warning "This will remove all existing keys, Press any key to continue, Ctrl+C to exit ..."
+	read a
+	rm -rf $HOME/otpgen || fatal_error "Unable to run command #rm -rf $HOME/otpgen, try with sudo or run this from root user #rm -rf $HOME/otpgen "
+	install_main
 }
 
 
@@ -247,8 +320,8 @@ function gen_key() {
                 secret=$(sed "${index}q;d" $HOME/otpgen/.secret_list|awk '{print $2}')
         fi
         token=$(oathtool --base32 --totp "$secret")
-        echo $token
-	printf $token|xclip -sel clip
+        success "OTP : $token"
+	printf $token|xclip -sel clip && success "OTP has been copied to clipboard, Ctrl+V to paste"
 
 
 }

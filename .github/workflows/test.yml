@@ -32,12 +32,17 @@ jobs:
     - name: test_2_1 Install packages
       run: sudo apt-get install zbar-tools xclip oathtool
 
-    - name: test_2_2 Test install command from normal user 
-      run: bash -x ./otpgen/otpgen.sh -i
+    - name: test_2_2 Test install command from normal user with sudo
+      run: sudo bash -x ./otpgen/otpgen.sh -i
 
+    - name: test_2_3 remove installation dir for next run 
+      run:  sudo rm -rf ~/otpgen
 
-    - name: Testing clean install command
-      run: echo y| bash -x ./otpgen/otpgen.sh --clean-install
+    #- name: test_2_4 Test install command from normal user without sudo
+    #  run: bash -x ./otpgen/otpgen.sh -i
+
+    - name: Testing clean install command with sudo
+      run: echo y| sudo bash -x ./otpgen/otpgen.sh --clean-install
 
 
    ## TODO: test add key, list_key, gen_key (both HOTP, TOTP)

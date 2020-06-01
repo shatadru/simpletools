@@ -27,7 +27,7 @@ jobs:
       run: chmod +x otpgen/otpgen.sh
 
     - name: Install packages
-      run: apt-get install zbarimg xclip oathtool
+      run: sudo apt-get install zbarimg xclip oathtool
 
     # Runs a single command using the runners shell
     - name: Testing install command

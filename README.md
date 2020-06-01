@@ -1,10 +1,10 @@
 #### otpgen.sh
 
-https://shatadru.in/wordpress/how-to-configure-two-step-authenticator-in-linux-shellgoogle-authenticator-freeotp-alternative/
+[Blog link](https://shatadru.in/wordpress/how-to-configure-two-step-authenticator-in-linux-shellgoogle-authenticator-freeotp-alternative/)
 
 #### fix_dup_rpm.sh
 
-https://shatadru.in/wordpress/how-to-fix-duplicate-rpm-issue-in-rhel-fedora/
+[Blog link](https://shatadru.in/wordpress/how-to-fix-duplicate-rpm-issue-in-rhel-fedora/)
 
 - Can be used to remove duplicate rpms if package-cleanup is failing
 ~~~
@@ -17,7 +17,7 @@ Syntax:  bash fix_dup_rpm.sh [-v][-d]
 
 #### fix-rpm.sh	
 
-https://shatadru.in/wordpress/how-to-verify-rpm-integrity-and-fix-any-rpm-issues-such-as-missing-files-unsatisfied-dependencies-modified-binaries-etc
+[blog libk](https://shatadru.in/wordpress/how-to-verify-rpm-integrity-and-fix-any-rpm-issues-such-as-missing-files-unsatisfied-dependencies-modified-binaries-etc)
 
 ### vol-control.sh : 
 ###### Don't have volume control keys ? set this shell scrip in shortcut to control volumes

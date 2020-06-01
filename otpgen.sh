@@ -27,7 +27,7 @@
 
 ## Variable declarations :
 
-version="0.5-0"
+version="0.5-1"
 
 if [ ! -z "$SUDO_USER" ] ; then
         export USER=$SUDO_USER
@@ -176,7 +176,7 @@ function extract_secret_from_image() {
 		
 		decode=`urldecode $(echo $out)`
         	qr_secret=$(echo $decode|grep -i secret=|cut -f2 -d "="  |cut -f "1" -d "&")
-		qr_issuer=$(echo $decode|grep -i secret=|cut -f3 -d "=")
+		qr_issuer=$(echo $decode|grep -i secret=|grep -io "issuer.*"|cut -f2 -d "="|sed 's/ /_/g')
 		qr_user=$(echo $decode|grep -i secret=|cut -f4 -d "/"|cut -f2 -d ":"|cut -f1 -d "?")
 		qr_type=$(echo $decode|grep -i secret=|cut -f3 -d "/")
 		
@@ -220,7 +220,7 @@ function install_pckgs() {
         pckg_check zbar
 }
 function install_main() {
-	echo -en "Checking for required packages.";sleep 1; echo -en "." ; sleep 1 ; echo -en "."
+	echo -en "Checking for required packages.";sleep .3; echo -en "." ; sleep .3 ; echo -en "."
         install_pckgs
 	echo
 	if [ "$fail_install" == "1" ];then
@@ -253,7 +253,7 @@ if [ ! -f $image ]; then
         fatal_error "File not found, cant add key..."
 fi
 
-echo -en "Detecting QR Code from supplied image.";sleep 1; echo -en "." ; sleep 1 ; echo -en "."; echo
+echo -en "Detecting QR Code from supplied image.";sleep .3; echo -en "." ; sleep .3 ; echo -en "."; echo
 
 extract_secret_from_image $image
 exit_stat=$?
@@ -263,15 +263,22 @@ if [ "$exit_stat" != "0" ]; then
 
 fi 
 
-if [ "$qr_type" != "totp" ]; then
+if [ "$qr_type" == "totp" ]; then
+	info "TOTP token detected"
+elif [ "$qr_type" == "hotp" ]; then
+	info "HOTP token detected"
+else
 	fatal_error "OTP type unsupported! Only TOTP is supported"
 fi
 secret_val=$qr_secret
-num_lines=$(cat  $HOME/otpgen/.secret_list|wc -l)
-echo "$((num_lines+1)) $name $secret_val  $qr_type  $qr_issuer  $qr_user" >> $HOME/otpgen/.secret_list
-success "Key added successfully"
-
+last_key_id=$(cat  $HOME/otpgen/.secret_list|tail -1|awk '{print $1}')
+if [ "$qr_type" == "hotp" ] ; then
+	echo "$((last_key_id+1)) $name $secret_val  $qr_type  $qr_issuer  $qr_user 0" >> $HOME/otpgen/.secret_list|| fatal_error "Failed to add key, try using sudo or check file permission" && success "Key added successfully"
+else
+	echo "$((last_key_id+1)) $name $secret_val  $qr_type  $qr_issuer  $qr_user" >> $HOME/otpgen/.secret_list||fatal_error "Failed to add key, try using sudo or check file permission" && success "Key added successfully"
+fi
 }
+
 function remove_key(){
 fatal_error "Feature is not implemented yet...."
 }
@@ -283,8 +290,10 @@ if [ $line == "0" ];
 then 
 	info "No keys installed, use -a or --add-key to install"
 else
-	echo "ID                                               Secret  TYPE  ISSUER  USER "
-	cat $HOME/otpgen/.secret_list
+	echo "ID Secret  TYPE  ISSUER  USER Counter(HOTP)"|awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,$2,$3,$4,$5,$6}'
+
+	cat $HOME/otpgen/.secret_list|awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,"••••••••••••••••••",$3,$4,$5,$6}'
+
 fi
 }
 function check_install(){
@@ -315,12 +324,31 @@ function gen_key() {
                 list_keys
                 echo "Which key do you want to select?"
                 read a
-                secret=$(sed "${a}q;d" $HOME/otpgen/.secret_list|awk '{print $2}')
-        else
-                secret=$(sed "${index}q;d" $HOME/otpgen/.secret_list|awk '{print $2}')
+		index=$a
         fi
-        token=$(oathtool --base32 --totp "$secret")
-        success "OTP : $token"
+	no_lines_selected=$(awk -v i="$index" '$1==i {print}' $HOME/otpgen/.secret_list|wc -l)
+	if [ "$no_lines_selected" != "1" ];then
+		fatal_error "Unable to generate key for ID: $index, check if ID is correct, run ./otpgen.sh -l to list all keys"
+	fi
+        secret=$(awk -v i="$index" '$1==i {print $2}' $HOME/otpgen/.secret_list)
+        token_type=$(awk -v i="$index" '$1==i {print $3}' $HOME/otpgen/.secret_list)
+        counter=$(awk -v i="$index" '$1==i {print $6}' $HOME/otpgen/.secret_list)
+     
+	if [ "$token_type" == "totp" ] ; then 	
+	        token=$(oathtool --base32 --totp "$secret")
+        else
+		token=$(oathtool --base32 -c $counter --hotp "$secret")
+		counter=$((counter+1))
+		cat /home/the_flash/otpgen/.secret_list|awk -v i="$index" -v c="$counter" '$1==i{$6=c}{print}' > /tmp/.$temdirname-newhotp
+		line_changes=$(sdiff -s  /tmp/.$temdirname-newhotp /home/the_flash/otpgen/.secret_list| wc -l)
+		if [ "$line_changes" == "1" ]; then
+			mv  /tmp/.$temdirname-newhotp /home/the_flash/otpgen/.secret_list || fatal_error "Error while incrementing HOTP counter, report this issue @ https://github.com/shatadru/simpletools/issues"
+		else
+			fatal_error "Error while incrementing HOTP counter, bug detected, report this issue @ https://github.com/shatadru/simpletools/issues"
+		fi
+		
+	fi
+	success "OTP : $token"
 	printf $token|xclip -sel clip && success "OTP has been copied to clipboard, Ctrl+V to paste"
 
 

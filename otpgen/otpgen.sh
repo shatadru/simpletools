@@ -27,7 +27,7 @@
 
 ## Variable declarations :
 
-version="0.5-2"
+version="0.5-3"
 
 if [ -n "$SUDO_USER" ] ; then
         USER=$SUDO_USER
@@ -48,7 +48,14 @@ argnum=$((numarg-1))
 install=0
 root=0
 fail_install=0
-tempdirname=$(< /dev/urandom  tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
+tempdirname=$(curl -s "https://www.random.org/strings/?num=1&len=8&digits=on&upperalpha=on&loweralpha=on&unique=on&format=plain&rnd=new")
+if [ -z "$tempdirname" ]; then
+	tempdirname=$(timeout 2 < /dev/urandom  tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
+fi
+
+if [ -z "$tempdirname" ]; then
+	tempdirname=$(md5sum /proc/meminfo |tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
+fi
 qr_secret=""
 qr_type=""
 qr_issuer=""

@@ -30,7 +30,7 @@ jobs:
       run: bash ./otpgen/otpgen.sh -V
 
     - name: test_2_1 Install packages
-      run: sudo apt-get install zbar-tools xclip oathtool
+      run: sudo yum install zbar xclip oathtool
 
     - name: test_2_2 Test install command from normal user with sudo
       run: sudo bash -x ./otpgen/otpgen.sh -i

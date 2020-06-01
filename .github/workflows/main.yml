@@ -20,6 +20,9 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
-    - name: ShellCheck
-      uses: ludeeus/action-shellcheck@0.2.0
+      - uses: actions/checkout@v2
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@0.2.0
+        with:
+          # Paths to ignore when running ShellCheck
+            ignore: rpm

@@ -139,7 +139,7 @@ function print_command(){
     pckg=$1
     if [ "$fedora" == "1" ] ; then
         info "  # dnf install $pckg -y"
-    elif [ "ubuntu" == "1" ]; then 
+    elif [ "$ubuntu" == "1" ]; then 
         info "  # apt-get install $pckg -y"
     else
     echo "Install $pckg"

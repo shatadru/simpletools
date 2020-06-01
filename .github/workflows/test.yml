@@ -26,6 +26,9 @@ jobs:
     - name: Add execute permission
       run: chmod +x otpgen/otpgen.sh
 
+    - name: Install packages
+      run: apt-get install zbarimg xclip oathtool
+
     # Runs a single command using the runners shell
     - name: Testing install command
-      run: sudo ./otpgen/otpgen.sh -i
+      run: bash ./otpgen/otpgen.sh -i

@@ -26,9 +26,18 @@ jobs:
     - name: Add execute permission
       run: chmod +x otpgen/otpgen.sh
 
-    - name: Install packages
+    - name: test_1 Print version
+      run: bash ./otpgen/otpgen.sh -V
+
+    - name: test_2_1 Install packages
       run: sudo apt-get install zbar-tools xclip oathtool
 
-    # Runs a single command using the runners shell
-    - name: Testing install command
-      run: bash ./otpgen/otpgen.sh -i
+    - name: test_2_2 Test install command from normal user 
+      run: bash -x ./otpgen.sh -i
+
+
+    - name: Testing clean install command
+      run: echo y| bash -x ./otpgen.sh --clean-install
+
+
+   ## TODO: test add key, list_key, gen_key (both HOTP, TOTP)

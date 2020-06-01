@@ -115,7 +115,7 @@ function check_version () {
 function pckg_check() {
 if [ "$fedora" == "1" ]; then
 	run_command="rpm -q"
-elif [ "$fedora" == "1" ]; then
+elif [ "$ubuntu" == "1" ]; then
 	run_command="dpkg -l"
 fi
 

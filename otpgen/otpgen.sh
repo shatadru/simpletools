@@ -113,8 +113,13 @@ function check_version () {
 
 }
 function pckg_check() {
+if [ "$fedora" == "1" ]; then
+	run_command="rpm -q"
+elif [ "$fedora" == "1" ]; then
+	run_command="dpkg -l"
+fi
 
-        if ! rpm -q "$1" > /dev/null 2> /dev/null ; then
+        if ! $run_command "$1" > /dev/null 2> /dev/null ; then
                 echo Package : "$1" Not found...
                 if [ "$install" == "1" ];then
                         echo "Installing $1 package....";echo
@@ -205,7 +210,11 @@ function detect_os() {
 function install_pckgs() {
         pckg_check oathtool
         pckg_check xclip
-        pckg_check zbar
+	if [ "$fedora" == "1" ]; then
+	    pckg_check zbar
+        elif [ "$ubuntu" == "1" ]; then 
+	    pckg_check zbar-tools
+	fi
 }
 function install_main() {
     echo -en "Checking for required packages.";sleep .3; echo -en "." ; sleep .3 ; echo -en "."

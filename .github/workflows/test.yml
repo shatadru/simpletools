@@ -33,11 +33,11 @@ jobs:
       run: sudo apt-get install zbar-tools xclip oathtool
 
     - name: test_2_2 Test install command from normal user 
-      run: bash -x ./otpgen.sh -i
+      run: bash -x ./otpgen/otpgen.sh -i
 
 
     - name: Testing clean install command
-      run: echo y| bash -x ./otpgen.sh --clean-install
+      run: echo y| bash -x ./otpgen/otpgen.sh --clean-install
 
 
    ## TODO: test add key, list_key, gen_key (both HOTP, TOTP)

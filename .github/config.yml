@@ -1,0 +1,11 @@
+# Config for TODO bot
+todo:
+  keyword: "#TODO:"
+  caseSensitive: true
+# These are the available config settings.
+  bodyKeyword: "#TODO_DETAILS:" # string|string[]
+  blobLines: 0                # number|boolean, 0 or false to disable
+  autoAssign: true            # string|string[]|boolean
+  label: true                 # boolean|string|string[]
+  reopenClosed: true          # boolean
+

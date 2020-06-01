@@ -1,5 +1,4 @@
-#### otpgen.sh
-
+#### otpgen.sh ![CI](https://github.com/shatadru/simpletools/workflows/CI/badge.svg)
 [Blog link](https://shatadru.in/wordpress/how-to-configure-two-step-authenticator-in-linux-shellgoogle-authenticator-freeotp-alternative/)
 
 #### fix_dup_rpm.sh

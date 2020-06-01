@@ -25,4 +25,4 @@ jobs:
         uses: ludeeus/action-shellcheck@0.2.0
         with:
           # Paths to ignore when running ShellCheck
-            ignore: fix-rpm.sh, fix_dup_rpm.sh, notifyatlogin, vol-control.sh
+            ignore: rpm

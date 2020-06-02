@@ -2,8 +2,10 @@
 [Blog link](https://shatadru.in/wordpress/how-to-configure-two-step-authenticator-in-linux-shellgoogle-authenticator-freeotp-alternative/)
 
 ### otpgen CI Status:
-![CI](https://github.com/shatadru/simpletools/workflows/CI/badge.svg)
-
+![Fedora CI](https://github.com/shatadru/simpletools/workflows/Fedora%20CI/badge.svg)
+![Ubuntu 18.04 CI](https://github.com/shatadru/simpletools/workflows/Ubuntu%2018.04%20CI/badge.svg)
+![Debian CI](https://github.com/shatadru/simpletools/workflows/Debian%20CI/badge.svg)
+![Shell-Check CI](https://github.com/shatadru/simpletools/workflows/Shell-Check%20CI/badge.svg)
 
 #### fix_dup_rpm.sh
 

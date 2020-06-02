@@ -3,13 +3,13 @@
 ![GitHub closed issues](https://img.shields.io/github/issues-closed-raw/shatadru/simpletools)
 ![GitHub last commit](https://img.shields.io/github/last-commit/shatadru/simpletools)
 
-## otpgen.sh : 2 Factor Authettication for Linux
+## otpgen.sh : 2 Factor Authentication for Linux
 
 ##### Supports : Fedora, Ubuntu, Debian (more to be added including RHEL, CentOS, Manjaro, Mint)
 
 
 ~~~
-	otpgen.sh, otpgen:   2 Factor Authettication for Linux
+	otpgen.sh, otpgen:   2 Factor Authentication for Linux
               
                              This tool allows you to generate 2 step verification codes in Linux command line
 

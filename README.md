@@ -1,5 +1,42 @@
-#### otpgen.sh 
-[Blog link](https://shatadru.in/wordpress/how-to-configure-two-step-authenticator-in-linux-shellgoogle-authenticator-freeotp-alternative/)
+## Repository stats:
+![GitHub issues](https://img.shields.io/github/issues/shatadru/simpletools)
+![GitHub closed issues](https://img.shields.io/github/issues-closed-raw/shatadru/simpletools)
+![GitHub last commit](https://img.shields.io/github/last-commit/shatadru/simpletools)
+
+## otpgen.sh : 2 Factor Authettication for Linux
+
+##### Supports : Fedora, Ubuntu, Debian (more to be added including RHEL, CentOS, Manjaro, Mint)
+
+
+~~~
+	otpgen.sh, otpgen:   2 Factor Authettication for Linux
+              
+                             This tool allows you to generate 2 step verification codes in Linux command line
+
+			     Features:
+				* Generate verification code offline
+				* Support for both HOTP and TOTP based tokens
+				* Automatic setup via QR Code
+				* Add multiple account/keys
+
+	Syntax:  ./otpgen.sh [-V|--version][-i|--install][--clean-install][-a|--add-key <path to image>] [-l|--list-key][-g|--gen-key]
+         -V, --version       Print version
+         
+         -i, --install       Install otpgen.sh in system
+                  
+         --clean-install     Clean any local data and re-install
+         
+         -a, --add-key FILE  Add a new 2FA from image containing QR Code
+         
+         -l, --list-key      List all available 2FA stored in the system
+         
+         -g, --gen-key [ID]  Generate one time password
+                             Passing ID is optional, else it will ask for ID
+                             for which you want to generate OTP.       
+    
+ ~~~
+ 
+You can read more details in my [Blog link](https://shatadru.in/wordpress/how-to-configure-two-step-authenticator-in-linux-shellgoogle-authenticator-freeotp-alternative/)
 
 ### otpgen CI Status:
 ![Fedora CI](https://github.com/shatadru/simpletools/workflows/Fedora%20CI/badge.svg)
@@ -7,6 +44,7 @@
 ![Ubuntu 20.04 CI](https://github.com/shatadru/simpletools/workflows/Ubuntu%2020.04%20CI/badge.svg)
 ![Debian CI](https://github.com/shatadru/simpletools/workflows/Debian%20CI/badge.svg)
 ![Shell-Check CI](https://github.com/shatadru/simpletools/workflows/Shell-Check%20CI/badge.svg)
+
 
 #### fix_dup_rpm.sh
 

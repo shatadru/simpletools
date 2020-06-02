@@ -5,8 +5,7 @@
 # Services tested so far : amazon.in
 # Manually Tested OS:  Fedora 30-32, Ubuntu 18.04(container)
 
-# CI test runs on: Fedora 32, Debian 10, Ubuntu 18.04
-#TODO: Add CI test for Ubuntu 20.04
+# CI test runs on: Fedora 32, Debian 10, Ubuntu 18.04, Ubuntu 20.04
 
 # OBTAIN THE LATEST VERSION OF THE SCRIPT AT :  https://github.com/shatadru/simpletools/blob/master/otpgen.sh
 #                       DIRECT DOWNLOAD LINK : https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen.sh

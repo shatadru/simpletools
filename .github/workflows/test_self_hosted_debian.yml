@@ -15,7 +15,7 @@ jobs:
   # This workflow contains a single job called "build"
   build:
     # The type of runner that the job will run on
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux, x64, debian]
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -29,8 +29,11 @@ jobs:
     - name: test_1 Print version
       run: bash ./otpgen/otpgen.sh -V
 
-    - name: test_2_1 Install packages
-      run: sudo yum install zbar xclip oathtool
+    - name: test_2_1_1 Install packages
+      run: sudo apt-get install zbar-tools xclip oathtool
+
+    - name: test_2_1_2 Cleanup
+      run: sudo rm -rf ~/otpgen
 
     - name: test_2_2 Test install command from normal user with sudo
       run: sudo bash -x ./otpgen/otpgen.sh -i

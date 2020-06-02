@@ -29,7 +29,7 @@
 
 ## Variable declarations :
 
-version="0.5-4"
+version="0.5-5"
 
 if [ -n "$SUDO_USER" ] ; then
         USER=$SUDO_USER
@@ -63,6 +63,44 @@ qr_type=""
 qr_issuer=""
 qr_user=""
 
+function print_help(){
+	cat > /tmp/"$tempdirname"-help <<EOF
+		
+	otpgen.sh, otpgen:   2 Factor Authettication for Linux
+              
+                             This tool allows you to generate 2 step verification codes in Linux command line
+
+			     Features:
+
+				* Generate verification code offline
+				* Support for both HOTP and TOTP based tokens
+				* Automatic setup via QR Code
+				* Add multiple accounts/keys, list and genetate keys
+				* Supports : Fedora, Ubuntu, Debian (more to be added including RHEL, CentOS, Manjaro, Mint)
+
+	Syntax:  ./otpgen.sh [-V|--version][-i|--install][--clean-install][-a|--add-key <path to image>] [-l|--list-key][-g|--gen-key]
+         -V, --version       Print version
+         
+         -i, --install       Install otpgen.sh in system
+                  
+         --clean-install     Clean any local data and re-install
+         
+         -a, --add-key FILE  Add a new 2FA from image containing QR Code
+         
+         -l, --list-key      List all available 2FA stored in the system
+         
+         -g, --gen-key [ID]  Generate one time password
+                             Passing ID is optional, else it will ask for ID
+                             for which you want to generate OTP.       
+
+Author     : Shatadru Bandyopadhyay(shatadru1@gmail.com)
+Maintainer : Shatadru Bandyopadhyay(shatadru1@gmail.com)
+License    : GPLv3
+
+EOF
+cat /tmp/"$tempdirname"-help
+
+}
 function print_version(){
     info "Version: $version"
 }
@@ -399,7 +437,9 @@ for i in $(seq 0 "$argnum"); do
                 -g|--gen-key)
                         gen_key "$key2"
                 ;;
-
+		-h|--help)
+			print_help
+		;;
 
                 *)
                 ;;

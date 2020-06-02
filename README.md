@@ -5,13 +5,21 @@
 
 ## otpgen.sh : 2 Factor Authettication for Linux
 
-##### This script allows you to store and generate 2 Factor authetication code from sources.
-##### Both TOTP and HOTP based tokens are supported
 ##### Supports : Fedora, Ubuntu, Debian (more to be added including RHEL, CentOS, Manjaro, Mint)
 
 
 ~~~
-Syntax:  ./otpgen.sh [-V|--version][-i|--install][--clean-install][-a|--add-key <path to image>] [-l|--list-key][-g|--gen-key]
+	otpgen.sh, otpgen:   2 Factor Authettication for Linux
+              
+                             This tool allows you to generate 2 step verification codes in Linux command line
+
+			     Features:
+				* Generate verification code offline
+				* Support for both HOTP and TOTP based tokens
+				* Automatic setup via QR Code
+				* Add multiple account/keys
+
+	Syntax:  ./otpgen.sh [-V|--version][-i|--install][--clean-install][-a|--add-key <path to image>] [-l|--list-key][-g|--gen-key]
          -V, --version       Print version
          
          -i, --install       Install otpgen.sh in system
@@ -25,6 +33,7 @@ Syntax:  ./otpgen.sh [-V|--version][-i|--install][--clean-install][-a|--add-key 
          -g, --gen-key [ID]  Generate one time password
                              Passing ID is optional, else it will ask for ID
                              for which you want to generate OTP.       
+    
  ~~~
  
 You can read more details in my [Blog link](https://shatadru.in/wordpress/how-to-configure-two-step-authenticator-in-linux-shellgoogle-authenticator-freeotp-alternative/)

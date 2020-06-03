@@ -304,7 +304,7 @@ function add_key(){
     elif [ "$qr_type" == "hotp" ]; then
         info "HOTP token detected"
     else
-        fatal_error "OTP type unsupported! Only TOTP is supported"
+        fatal_error "OTP type unsupported! Only TOTP and HOTP are supported"
     fi
     secret_val=$qr_secret
     last_key_id=$(tail -1 "$HOME"/otpgen/.secret_list|awk '{print $1}')

@@ -1,3 +1,3 @@
 #!/bin/bash
-
-sudo apt-get install zbar-tools xclip oathtool wget -y
+set -e
+sudo apt-get install zbar-tools xclip oathtool neofetch wget -y

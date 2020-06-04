@@ -1,3 +1,3 @@
 #!/bin/bash
-
-sudo yum install zbar xclip oathtool wget -y
+set -e
+sudo yum install zbar xclip oathtool wget neofetch -y

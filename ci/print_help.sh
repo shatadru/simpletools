@@ -1,3 +1,3 @@
 #!/bin/bash
-
-bash -x ./otpgen/otpgen.sh -h
+set -e
+time bash -x ./otpgen/otpgen.sh -h

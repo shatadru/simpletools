@@ -1,3 +1,3 @@
 #!/bin/bash
-
-echo y| sudo bash -x ./otpgen/otpgen.sh --clean-install
+set -e
+echo y|  sudo time bash -x ./otpgen/otpgen.sh --clean-install

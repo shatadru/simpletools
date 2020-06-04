@@ -1,5 +1,7 @@
 #!/bin/bash
 set -x 
+set -e
+
 HOME=$(bash <<< "echo ~${SUDO_USER:-}")
 export HOME
 

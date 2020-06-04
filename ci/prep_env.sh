@@ -7,7 +7,7 @@ echo "Downloading sample TOTP image"
 wget https://shatadru.in/runner_files/totp_1.png || echo "echo Downloading resources failed"
 
 echo "Adding execute permission"
-chmod +x otpgen/otpgen.sh
+chmod +x ./otpgen/otpgen.sh
 
 echo "Cleanup leftover from previous run"
-sudo rm -rf ~/otpgen
+sudo bash ./ci/cleanup.sh

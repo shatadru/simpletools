@@ -155,7 +155,7 @@ function check_version () {
 function pckg_check() {
 if [ "$fedora" == "1" ]; then
 	run_command="rpm -q"
-elif [ "$ubuntu" == "1" ]; then
+elif [ "$ubuntu" == "1" ] || [ "$debian" == "1" ] ; then
 	run_command="dpkg -l"
 fi
 
@@ -180,10 +180,11 @@ function install_command(){
     pckg=$1
     if [ "$fedora" == "1" ] ; then
         dnf install "$pckg" -y
-    elif [ "$ubuntu" == "1" ]; then 
+    elif [ "$ubuntu" == "1" ] || [ "$debian" == "1" ]; then 
         apt-get install "$pckg" -y
     else
-    info "Install $pckg"
+ 	   info "Install $pckg in your distro"
+	   fail_install=1
     fi
 }
 
@@ -191,10 +192,10 @@ function print_command(){
     pckg=$1
     if [ "$fedora" == "1" ] ; then
         info "  # dnf install $pckg -y"
-    elif [ "$ubuntu" == "1" ]; then 
+    elif [ "$ubuntu" == "1" ] || [ "$debian" == "1" ] ; then 
         info "  # apt-get install $pckg -y"
     else
-    echo "Install $pckg"
+  	  echo "Install $pckg in your distro"
     fi    
 }
 
@@ -244,6 +245,10 @@ function detect_os() {
 
         elif [ "$os" == "ubuntu" ]; then
                 ubuntu=1
+	elif [ "$os" == "debian" ]; then
+		debian=1
+	else
+		warning "OS Not supported, might not work correctly"
         fi
 }
 

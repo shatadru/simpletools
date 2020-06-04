@@ -7,8 +7,8 @@
 
 # CI test runs on: Fedora 32, Debian 10, Ubuntu 18.04, Ubuntu 20.04, RHEL 7.8
 
-# OBTAIN THE LATEST VERSION OF THE SCRIPT AT :  https://github.com/shatadru/simpletools/blob/master/otpgen.sh
-#                       DIRECT DOWNLOAD LINK : https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen.sh
+# OBTAIN THE LATEST VERSION OF THE SCRIPT AT :  https://github.com/shatadru/simpletools/blob/master/otpgen/otpgen.sh
+#                       DIRECT DOWNLOAD LINK : https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen/otpgen.sh
 
 # 
 # Licenced under GPLv3, check LICENSE.txt
@@ -132,7 +132,7 @@ function check_version () {
     SCRIPT=$(readlink -f "$0")
     md5sum_local=$(md5sum "$SCRIPT"|awk '{print $1}')
     mkdir -p /tmp/"$tempdirname"
-    curl -s -H 'Cache-Control: no-cache'  https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen.sh > /tmp/"$tempdirname"/otpgen.sh 
+    curl -s -H 'Cache-Control: no-cache'  https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen/otpgen.sh > /tmp/"$tempdirname"/otpgen.sh 
     curl_error=$?
     
     if [ "$curl_error" == "0" ]; then
@@ -242,7 +242,7 @@ function extract_secret_from_image() {
 
 
 function detect_os() {
-        os=$(grep -i ^id= /etc/os-release|cut -f2 -d "=")
+        os=$(grep -i ^id= /etc/os-release|cut -f2 -d "="|sed  's/"//g' | sed  "s/'//g" )
 
         if [ "$os" == "fedora" ]; then
                 fedora=1

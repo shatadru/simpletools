@@ -25,31 +25,31 @@ jobs:
     - name: Prep env for testing
       run: bash ./ci/prep_env.sh
 
-    - name: Test 1: Print version
+    - name: Test  1 - Print version
       run: bash ./ci/print_version.sh
 
-    - name: Test 2: Print help
+    - name: Test  2 - Print help
       run: bash ./ci/print_help.sh
 
     - name: Install required packages
       run: bash ./ci/rpm_install_requires.sh
 
-    - name: Test 3: Test install command from normal user with sudo
+    - name: Test  3 - Test install command from normal user with sudo
       run: sudo bash ./ci/install.sh
 
     - name: Remove installation dir for next run 
       run:  bash ./ci/cleanup.sh
 
-    - name: Test 4:  install command from normal user without sudo - when packages are installed
+    - name: Test  4 -  install command from normal user without sudo - when packages are installed
       run: bash ./ci/install.sh
 
-    - name: Test 5: Testing clean install command with sudo
+    - name: Test  5 - Testing clean install command with sudo
       run: bash ./ci/reinstall.sh
 
-    - name: Test 6: Test add and list keys 
+    - name: Test  6 - Test add and list keys 
       run:  bash ./ci/add_key.sh
 
-    - name: Test 7: generate OTP
+    - name: Test  7 - generate OTP
       run: bash ./ci/gen_key.sh
 
    ## TODO: test add key, list_key, gen_key (both HOTP, TOTP)

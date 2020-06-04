@@ -242,7 +242,7 @@ function extract_secret_from_image() {
 
 
 function detect_os() {
-        os=$(grep -i ^id= /etc/os-release|cut -f2 -d "=")
+        os=$(grep -i ^id= /etc/os-release|cut -f2 -d "="|sed  's/"//g' | sed  "s/'//g" )
 
         if [ "$os" == "fedora" ]; then
                 fedora=1

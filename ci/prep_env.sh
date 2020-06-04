@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -x
 echo "Downloading sample HOTP image"
 wget https://shatadru.in/runner_files/hotp_1.png || echo "echo Downloading resources failed"
 

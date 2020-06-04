@@ -42,7 +42,10 @@ You can read more details in my [Blog link](https://shatadru.in/wordpress/how-to
 ![Fedora CI](https://github.com/shatadru/simpletools/workflows/Fedora%20CI/badge.svg)
 ![Ubuntu 18.04 CI](https://github.com/shatadru/simpletools/workflows/Ubuntu%2018.04%20CI/badge.svg)
 ![Ubuntu 20.04 CI](https://github.com/shatadru/simpletools/workflows/Ubuntu%2020.04%20CI/badge.svg)
+
+![RHEL CI](https://github.com/shatadru/simpletools/workflows/RHEL%20CI/badge.svg)
 ![Debian CI](https://github.com/shatadru/simpletools/workflows/Debian%20CI/badge.svg)
+
 ![Shell-Check CI](https://github.com/shatadru/simpletools/workflows/Shell-Check%20CI/badge.svg)
 
 

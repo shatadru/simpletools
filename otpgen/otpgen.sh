@@ -179,11 +179,11 @@ fi
 function install_command(){
     pckg=$1
     if [ "$fedora" == "1" ] ; then
-        dnf install "$pckg" -y
+        dnf install "$pckg" -y && info "$pckg was successfullu installed" || fail_install=1
     elif [ "$ubuntu" == "1" ] || [ "$debian" == "1" ]; then 
-        apt-get install "$pckg" -y
+        apt-get install "$pckg" -y  && info "$pckg was successfullu installed"  || fail_install=1
     elif [ "$rhel" == "1" ]; then
-	yum install "$pckg" -y
+	yum install "$pckg" -y  && info "$pckg was successfullu installed"  || fail_install=1
     else
  	   info "Install $pckg in your distro"
 	   fail_install=1

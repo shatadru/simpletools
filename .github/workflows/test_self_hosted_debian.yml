@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: Debian CI
+name: Ubuntu 18.04 CI
 
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the master branch
@@ -16,36 +16,40 @@ jobs:
   build:
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, x64, debian]
-
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
 
     # Runs a single command using the runners shell
-    - name: Add execute permission
-      run: chmod +x otpgen/otpgen.sh
+    - name: Prep env for testing
+      run: bash ./ci/prep_env.sh
 
-    - name: test_1 Print version
-      run: bash ./otpgen/otpgen.sh -V
+    - name: Test 1: Print version
+      run: bash ./ci/print_version.sh
 
-    - name: test_2_1_1 Install packages
-      run: sudo apt-get install zbar-tools xclip oathtool -y
+    - name: Test 2: Print help
+      run: bash ./ci/print_help.sh
 
-    - name: test_2_1_2 Cleanup
-      run: sudo rm -rf ~/otpgen
+    - name: Install required packages
+      run: bash ./ci/dpkg_install_requires.sh
 
-    - name: test_2_2 Test install command from normal user with sudo
-      run: sudo bash -x ./otpgen/otpgen.sh -i
+    - name: Test 3: Test install command from normal user with sudo
+      run: sudo bash ./ci/install.sh
 
-    - name: test_2_3 remove installation dir for next run 
-      run:  sudo rm -rf ~/otpgen
+    - name: Remove installation dir for next run 
+      run:  bash ./ci/cleanup.sh
 
-    #- name: test_2_4 Test install command from normal user without sudo
-    #  run: bash -x ./otpgen/otpgen.sh -i
+    - name: Test 4:  install command from normal user without sudo - when packages are installed
+      run: bash ./ci/install.sh
 
-    - name: Testing clean install command with sudo
-      run: echo y| sudo bash -x ./otpgen/otpgen.sh --clean-install
+    - name: Test 5: Testing clean install command with sudo
+      run: bash ./ci/reinstall.sh
 
+    - name: Test 6: Test add and list keys 
+      run:  bash ./ci/add_key.sh
+
+    - name: Test 7: generate OTP
+      run: bash ./ci/gen_key.sh
 
    ## TODO: test add key, list_key, gen_key (both HOTP, TOTP)

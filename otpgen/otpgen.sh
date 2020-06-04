@@ -1,11 +1,11 @@
 #!/bin/bash
 # Author : Shatadru Bandyopadhyay
 #           shatadru1@gmail.com
-# Supports : Fedora, Ubuntu, Debian (more to be added including RHEL, CentOS, Manjaro, Mint)
+# Supports : Fedora, Ubuntu, Debian, RHEL  (more to be added including CentOS, Manjaro, Mint)
 # Services tested so far : amazon.in
 # Manually Tested OS:  Fedora 30-32, Ubuntu 18.04(container)
 
-# CI test runs on: Fedora 32, Debian 10, Ubuntu 18.04, Ubuntu 20.04
+# CI test runs on: Fedora 32, Debian 10, Ubuntu 18.04, Ubuntu 20.04, RHEL 7.8
 
 # OBTAIN THE LATEST VERSION OF THE SCRIPT AT :  https://github.com/shatadru/simpletools/blob/master/otpgen.sh
 #                       DIRECT DOWNLOAD LINK : https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen.sh
@@ -76,7 +76,7 @@ function print_help(){
 				* Support for both HOTP and TOTP based tokens
 				* Automatic setup via QR Code
 				* Add multiple accounts/keys, list and genetate keys
-				* Supports : Fedora, Ubuntu, Debian (more to be added including RHEL, CentOS, Manjaro, Mint)
+				* Supports : Fedora, Ubuntu, Debian, RHEL (more to be added including CentOS, Manjaro, Mint)
 
 	Syntax:  ./otpgen.sh [-V|--version][-i|--install][--clean-install][-a|--add-key <path to image>] [-l|--list-key][-g|--gen-key]
          -V, --version       Print version
@@ -153,7 +153,7 @@ function check_version () {
 
 }
 function pckg_check() {
-if [ "$fedora" == "1" ]; then
+if [ "$fedora" == "1" ] || [ "$rhel" == "1" ] ; then
 	run_command="rpm -q"
 elif [ "$ubuntu" == "1" ] || [ "$debian" == "1" ] ; then
 	run_command="dpkg -l"
@@ -182,6 +182,8 @@ function install_command(){
         dnf install "$pckg" -y
     elif [ "$ubuntu" == "1" ] || [ "$debian" == "1" ]; then 
         apt-get install "$pckg" -y
+    elif [ "$rhel" == "1" ]; then
+	yum install "$pckg" -y
     else
  	   info "Install $pckg in your distro"
 	   fail_install=1
@@ -194,6 +196,8 @@ function print_command(){
         info "  # dnf install $pckg -y"
     elif [ "$ubuntu" == "1" ] || [ "$debian" == "1" ] ; then 
         info "  # apt-get install $pckg -y"
+    elif [ "$rhel" == "1" ] ; then
+        info "  # yum install $pckg -y"
     else
   	  echo "Install $pckg in your distro"
     fi    
@@ -247,6 +251,8 @@ function detect_os() {
                 ubuntu=1
 	elif [ "$os" == "debian" ]; then
 		debian=1
+	elif [ "$os" == "rhel" ]; then
+		rhel=1
 	else
 		warning "OS Not supported, might not work correctly"
         fi

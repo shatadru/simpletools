@@ -5,8 +5,9 @@
 
 ## otpgen.sh : 2 Factor Authentication for Linux
 
-##### Supports : Fedora, Ubuntu, Debian (more to be added including RHEL, CentOS, Manjaro, Mint)
+##### Supports : Fedora, Ubuntu, RHEL, Debian (more to be added including CentOS, Manjaro, Mint)
 
+- Open a new issue for any Linux support and I will try to add it.
 
 ~~~
 	otpgen.sh, otpgen:   2 Factor Authentication for Linux

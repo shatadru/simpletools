@@ -386,10 +386,10 @@ function gen_key() {
         else
         token=$(oathtool --base32 -c "$counter" --hotp "$secret")
         counter=$((counter+1))
-        awk -v i="$index" -v c="$counter" '$1==i{$6=c}{print}' /home/the_flash/otpgen/.secret_list > /tmp/."$tempdirname"-newhotp
-        line_changes=$(sdiff -s  /tmp/."$tempdirname"-newhotp /home/the_flash/otpgen/.secret_list| wc -l)
+        awk -v i="$index" -v c="$counter" '$1==i{$6=c}{print}' "$HOME"/otpgen/.secret_list > /tmp/."$tempdirname"-newhotp
+        line_changes=$(sdiff -s  /tmp/."$tempdirname"-newhotp "$HOME"/otpgen/.secret_list| wc -l)
         if [ "$line_changes" == "1" ]; then
-            mv  /tmp/."$tempdirname"-newhotp /home/the_flash/otpgen/.secret_list || fatal_error "Error while incrementing HOTP counter, report this issue @ https://github.com/shatadru/simpletools/issues"
+            mv  /tmp/."$tempdirname"-newhotp "$HOME"/otpgen/.secret_list || fatal_error "Error while incrementing HOTP counter, report this issue @ https://github.com/shatadru/simpletools/issues"
         else
             fatal_error "Error while incrementing HOTP counter, bug detected, report this issue @ https://github.com/shatadru/simpletools/issues"
         fi

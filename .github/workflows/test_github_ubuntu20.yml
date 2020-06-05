@@ -25,14 +25,14 @@ jobs:
     - name: Prep env for testing
       run: bash ./ci/prep_env.sh
 
+    - name: Install required packages
+      run: bash ./ci/dpkg_install_requires.sh
+    
     - name: Test  1 - Print version
       run: bash ./ci/print_version.sh
 
     - name: Test  2 - Print help
       run: bash ./ci/print_help.sh
-
-    - name: Install required packages
-      run: bash ./ci/dpkg_install_requires.sh
 
     - name: Test  3 - Test install command from normal user with sudo
       run: sudo bash ./ci/install.sh

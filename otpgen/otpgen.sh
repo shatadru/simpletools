@@ -29,7 +29,7 @@
 
 ## Variable declarations :
 
-version="0.5-5"
+version="0.5-6"
 
 if [ -n "$SUDO_USER" ] ; then
         USER=$SUDO_USER
@@ -50,21 +50,24 @@ argnum=$((numarg-1))
 install=0
 root=0
 fail_install=0
-tempdirname=$(curl -s "https://www.random.org/strings/?num=1&len=8&digits=on&upperalpha=on&loweralpha=on&unique=on&format=plain&rnd=new")
+tempdirname=$(timeout 2 < /dev/urandom  tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
 if [ -z "$tempdirname" ]; then
-	tempdirname=$(timeout 2 < /dev/urandom  tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
+	# This can slow down the script
+	tempdirname=$(curl -s "https://www.random.org/strings/?num=1&len=8&digits=on&upperalpha=on&loweralpha=on&unique=on&format=plain&rnd=new")
 fi
 
 if [ -z "$tempdirname" ]; then
 	tempdirname=$(md5sum /proc/meminfo |tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
 fi
+
+mkdir -p /tmp/."$tempdirname"
 qr_secret=""
 qr_type=""
 qr_issuer=""
 qr_user=""
 
 function print_help(){
-	cat > /tmp/"$tempdirname"-help <<EOF
+	cat > /tmp/."$tempdirname"/helpfile <<EOF
 		
 	otpgen.sh, otpgen:   2 Factor Authettication for Linux
               
@@ -98,7 +101,7 @@ Maintainer : Shatadru Bandyopadhyay(shatadru1@gmail.com)
 License    : GPLv3
 
 EOF
-cat /tmp/"$tempdirname"-help
+cat /tmp/."$tempdirname"/helpfile
 
 }
 function print_version(){
@@ -115,6 +118,7 @@ function check_root(){
 }
 function fatal_error() {
     echo -e "\e[31m\e[1m Fatal Error \e[0m: $1"
+    cleanup
     exit 255
 }
 
@@ -128,16 +132,20 @@ function success() {
     echo -e "\e[32m\e[1m Success \e[0m: $1 "
 }
 function check_version () {
+    # Only check update once a day
+    # Check if update check was performed recently
+    check_update_cache=$(find "$HOME"/otpgen/ -mtime +1 -name .check_update 2> /dev/null|wc -l)
+    if [ ! -f "$HOME"/otpgen/.check_update ] || [ "$check_update_cache" == "1" ]; then
+    
     info "Checking for updates of otpgen.sh"
     SCRIPT=$(readlink -f "$0")
     md5sum_local=$(md5sum "$SCRIPT"|awk '{print $1}')
-    mkdir -p /tmp/"$tempdirname"
-    curl -s -H 'Cache-Control: no-cache'  https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen/otpgen.sh > /tmp/"$tempdirname"/otpgen.sh 
+    curl -s -H 'Cache-Control: no-cache'  https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen/otpgen.sh > /tmp/."$tempdirname"/otpgen.sh 
     curl_error=$?
     
     if [ "$curl_error" == "0" ]; then
 
-        md5sum_remote=$(md5sum /tmp/"$tempdirname"/otpgen.sh|awk '{print $1}')
+        md5sum_remote=$(md5sum /tmp/."$tempdirname"/otpgen.sh|awk '{print $1}')
 
         if [ "$md5sum_local" == "$md5sum_remote" ] ; then 
             success "The script is at latest available version"
@@ -145,11 +153,17 @@ function check_version () {
             warning "Using older version of script"
             info "Get latest source at https://github.com/shatadru/simpletools/blob/master/otpgen.sh"
         fi
+	    touch "$HOME"/otpgen/.check_update
     else    
         warning "Unable to get check for update, curl failed" 
         curl_error_meaning=$(man curl|grep -i -A176 "exit codes"|awk '$1=='$curl_error'{print}')
         echo " Curl Error: $curl_error_meaning" 
     fi
+
+   else
+	info "Skipping update check, this is only done once a day..."
+
+fi
 
 }
 function pckg_check() {
@@ -208,7 +222,7 @@ function urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
 
 function extract_secret_from_image() {
         img=$1
-    out=$(/usr/bin/zbarimg  "$img"  2> /tmp/."$tempdirname"-error)
+    out=$(/usr/bin/zbarimg  "$img"  2> /tmp/."$tempdirname"/error)
     zbar_exit=$?
     if [ "$zbar_exit" ==  "0" ]; then 
         
@@ -221,16 +235,16 @@ function extract_secret_from_image() {
             return 0
     elif [ "$zbar_exit" ==  "1" ]; then
         echo "An error occured while processing image";echo
-        cat /tmp/."$tempdirname"-error
+        cat /tmp/."$tempdirname"/error
         fatal_error "An error occurred while processing some image(s). This includes bad arguments, I/O errors and image handling errors from ImageMagick."
     elif [ "$zbar_exit"  ==  "2" ]; then
         echo "An error occured while processing image";echo
-        cat /tmp/."$tempdirname"-error
+        cat /tmp/."$tempdirname"/error
         fatal_error "ImageMagick fatal error."
         return 1
     elif [ "$zbar_exit"  ==  "4" ]; then
         echo "An error occured while processing image";echo
-        cat /tmp/."$tempdirname"-error
+        cat /tmp/."$tempdirname"/error
         fatal_error "No barcode was detected in supplied image.."
         return 1
     else 
@@ -288,7 +302,19 @@ function install_main() {
         fi
     fi
 }
-
+function remove_image(){
+	img_file=$1
+	warning "The image contains your secret for OTP generation, you should delete this file as key has been added"
+	echo "Do you want to delete the image? [Y/N]"
+	read -r answer
+	if [ "$answer" == "y" ]|| [ "$answer" == "Y" ]; then
+		rm -f "$img_file" || warning "Delete failed, try deleting manually"
+	else
+		info "Setting chmod 000 to restrict unwanted access"
+		chmod 000 "$img_file"
+		warning "This file can reveal your secret, consider deleting it.($img_file)"
+	fi
+}
 function add_key(){
     image=$1
     name=$2
@@ -324,6 +350,7 @@ function add_key(){
     else
         echo "$((last_key_id+1)) $name $secret_val  $qr_type  $qr_issuer  $qr_user" >> "$HOME"/otpgen/.secret_list||fatal_error "Failed to add key, try using sudo or check file permission" && success "Key added successfully"
     fi
+    remove_image "$image"
 }
 
 function remove_key(){
@@ -386,21 +413,26 @@ function gen_key() {
         else
         token=$(oathtool --base32 -c "$counter" --hotp "$secret")
         counter=$((counter+1))
-        awk -v i="$index" -v c="$counter" '$1==i{$6=c}{print}' "$HOME"/otpgen/.secret_list > /tmp/."$tempdirname"-newhotp
-        line_changes=$(sdiff -s  /tmp/."$tempdirname"-newhotp "$HOME"/otpgen/.secret_list| wc -l)
+        awk -v i="$index" -v c="$counter" '$1==i{$6=c}{print}' "$HOME"/otpgen/.secret_list > /tmp/."$tempdirname"/.newhotp
+        line_changes=$(sdiff -s  /tmp/."$tempdirname"/.newhotp "$HOME"/otpgen/.secret_list| wc -l)
         if [ "$line_changes" == "1" ]; then
-            mv  /tmp/."$tempdirname"-newhotp "$HOME"/otpgen/.secret_list || fatal_error "Error while incrementing HOTP counter, report this issue @ https://github.com/shatadru/simpletools/issues"
+            mv  /tmp/."$tempdirname"/.newhotp "$HOME"/otpgen/.secret_list || fatal_error "Error while incrementing HOTP counter, report this issue @ https://github.com/shatadru/simpletools/issues"
         else
             fatal_error "Error while incrementing HOTP counter, bug detected, report this issue @ https://github.com/shatadru/simpletools/issues"
         fi
         
     fi
     success "OTP : $token"
-    printf "%s" "$token"|xclip -sel clip && success "OTP has been copied to clipboard, Ctrl+V to paste"
+    printf "%s" "$token" |xclip -sel clip 2> /dev/null && success "OTP has been copied to clipboard, Ctrl+V to paste"
 
 
 }
-
+function cleanup(){
+	if [ -n "$tempdirname" ]; then
+ 		rm -rf /tmp/."$tempdirname"/*
+		rmdir /tmp/."$tempdirname"
+ 	fi
+}
 check_version
 detect_os
 check_root
@@ -456,3 +488,4 @@ for i in $(seq 0 "$argnum"); do
                 ;;
         esac
 done
+cleanup

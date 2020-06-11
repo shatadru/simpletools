@@ -2,7 +2,9 @@
 # Author : Shatadru Bandyopadhyay
 #           shatadru1@gmail.com
 # Supports : Fedora, Ubuntu, Debian, RHEL  (more to be added including CentOS, Manjaro, Mint)
-# Services tested so far : amazon.in
+#            should work in most RPM or DPKG based distros
+#            Open github issue to add Distro support
+# Services tested so far : amazon.in, gmail.com, facebook.com
 # Manually Tested OS:  Fedora 30-32, Ubuntu 18.04(container)
 
 # CI test runs on: Fedora 32, Debian 10, Ubuntu 18.04, Ubuntu 20.04, RHEL 7.8
@@ -29,7 +31,7 @@
 
 ## Variable declarations :
 
-version="0.5-6"
+version="0.5-7"
 
 if [ -n "$SUDO_USER" ] ; then
         USER=$SUDO_USER
@@ -167,15 +169,16 @@ fi
 
 }
 function pckg_check() {
-if [ "$fedora" == "1" ] || [ "$rhel" == "1" ] ; then
+if [ "$package_manager" == "yum" ] ; then
 	run_command="rpm -q"
-elif [ "$ubuntu" == "1" ] || [ "$debian" == "1" ] ; then
+elif [ "$package_manager" == "apt-get" ] ; then
 	run_command="dpkg -l"
 fi
 
         if ! $run_command "$1" > /dev/null 2> /dev/null ; then
                 echo Package : "$1" Not found...
                 if [ "$install" == "1" ];then
+			echo "Do you want to install $1? Press any key to continue, ctrl+c to exit" ; read -r a ;
                         echo "Installing $1 package....";echo
                         install_command "$1";echo
                 else
@@ -192,12 +195,13 @@ fi
 
 function install_command(){
     pckg=$1
-    if [ "$fedora" == "1" ] ; then
-        dnf install "$pckg" -y && info "$pckg was successfullu installed" || fail_install=1
-    elif [ "$ubuntu" == "1" ] || [ "$debian" == "1" ]; then 
+    if [  "$package_manager" == "yum" ] ; then
+	if type -p dnf > /dev/null 2> /dev/null; then
+		alias yum='dnf'
+	fi
+        yum install "$pckg" -y && info "$pckg was successfullu installed" || fail_install=1
+    elif [ "$package_manager" == "apt-get" ]; then 
         apt-get install "$pckg" -y  && info "$pckg was successfullu installed"  || fail_install=1
-    elif [ "$rhel" == "1" ]; then
-	yum install "$pckg" -y  && info "$pckg was successfullu installed"  || fail_install=1
     else
  	   info "Install $pckg in your distro"
 	   fail_install=1
@@ -206,12 +210,11 @@ function install_command(){
 
 function print_command(){
     pckg=$1
-    if [ "$fedora" == "1" ] ; then
-        info "  # dnf install $pckg -y"
-    elif [ "$ubuntu" == "1" ] || [ "$debian" == "1" ] ; then 
-        info "  # apt-get install $pckg -y"
-    elif [ "$rhel" == "1" ] ; then
-        info "  # yum install $pckg -y"
+    if [  "$package_manager" == "yum" ] ; then
+	if type -p dnf ; then
+	package_manager='dnf'
+	fi
+        info "  # $package_manager install $pckg -y"
     else
   	  echo "Install $pckg in your distro"
     fi    
@@ -256,28 +259,58 @@ function extract_secret_from_image() {
 
 
 function detect_os() {
-        os=$(grep -i ^id= /etc/os-release|cut -f2 -d "="|sed  's/"//g' | sed  "s/'//g" )
+	os=$(uname -s)
+	case "$os" in
+        SunOS)    os=Solaris ;;
+        MINIX)    os=MINIX ;;
+        AIX)      os=AIX ;;
+        IRIX*)    os=IRIX ;;
+        FreeMiNT) os=FreeMiNT ;;
 
-        if [ "$os" == "fedora" ]; then
-                fedora=1
+        Linux|GNU*)
+            os=Linux
+        ;;
 
-        elif [ "$os" == "ubuntu" ]; then
-                ubuntu=1
-	elif [ "$os" == "debian" ]; then
-		debian=1
-	elif [ "$os" == "rhel" ]; then
-		rhel=1
+        *BSD|DragonFly|Bitrig)
+            os=BSD
+        ;;
+
+        CYGWIN*|MSYS*|MINGW*)
+            os=Windows
+        ;;
+
+        *)
+            warning "Unknown OS detected: $os aborting..." 
+            fatal_error "Open an issue on GitHub to add support for your OS." 
+        ;;
+       esac
+
+	if [ "$os" != "Linux" ]; then
+		fatal_error "$os is not supported, Open an issue on GitHub to add support for your OS."
+	fi
+
+	if [ -f /etc/os-release ] ||  [ -f /etc/lsb-release ]; then
+		os=$(grep -i ^id= /etc/os-release|cut -f2 -d "="|sed  's/"//g' | sed  "s/'//g" )
+		os_like=$(grep -i ^id_like= /etc/os-release|cut -f2 -d "="|sed  's/"//g' | sed  "s/'//g" )
+	fi
+        if [ "$os" == "fedora" ] || [ "$os_like" == "fedora" ]; then
+                package_manager="yum"
+        elif [ "$os" == "debian" ] || [ "$os_like" == "debian" ]; then
+                package_manager="apt-get"
+	#elif [ "$os" == "arch" ] || [ "$os_like" == "arch" ]; then
+	#	package_manager="pacman"
+	
 	else
-		warning "OS Not supported, might not work correctly"
+		fatal_error "Distro is not supported right now, Open an issue on GitHub to add support for your Distro."
         fi
 }
 
 function install_pckgs() {
         pckg_check oathtool
         pckg_check xclip
-	if [ "$fedora" == "1" ]; then
+	if [ "$package_manager" == "yum" ]; then
 	    pckg_check zbar
-        elif [ "$ubuntu" == "1" ]; then 
+        elif [ "$package_manager" == "apt-get" ]; then 
 	    pckg_check zbar-tools
 	fi
 }

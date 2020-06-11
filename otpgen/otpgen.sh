@@ -31,7 +31,7 @@
 
 ## Variable declarations :
 
-version="0.5-7"
+version="0.5-8"
 
 if [ -n "$SUDO_USER" ] ; then
         USER=$SUDO_USER
@@ -44,8 +44,6 @@ fi
 HOME=$(bash <<< "echo ~${SUDO_USER:-}")
 export HOME
 os=""
-fedora=0
-ubuntu=0
 args=( "$@" )
 numarg=$#
 argnum=$((numarg-1))
@@ -327,7 +325,14 @@ function install_main() {
         echo "Creating required files"
             mkdir -p "$HOME"/otpgen||failed=1
         touch  "$HOME"/otpgen/.secret_list||failed=1
-            chown -R "$USER":"$USER" "$HOME"/otpgen||failed=1
+	    if type -p stat; then
+		cur_user=$(stat -c '%U'  "$HOME"/otpgen)
+	    else
+		cur_user=$(find "$HOME"/otpgen -type d -printf "%g" )
+	    fi
+	    if [ "$cur_user" != "$USER" ]; then
+	            chown -R "$USER":"$USER" "$HOME"/otpgen||failed=1
+	    fi
         if [  -z "$failed" ]; then
             success "Installation successful"
         else

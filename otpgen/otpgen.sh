@@ -246,9 +246,9 @@ function install_command(){
 	if type -p dnf > /dev/null 2> /dev/null; then
 		alias yum='dnf'
 	fi
-        yum install "$pckg" -y && info "$pckg was successfullu installed" || fail_install=1
+        yum install "$pckg" -y && info "$pckg was successfully installed" || fail_install=1
     elif [ "$package_manager" == "apt-get" ]; then 
-        apt-get install "$pckg" -y  && info "$pckg was successfullu installed"  || fail_install=1
+        apt-get install "$pckg" -y  && info "$pckg was successfully installed"  || fail_install=1
     else
  	   info "Install $pckg in your distro"
 	   fail_install=1
@@ -353,7 +353,7 @@ fi
 }
 function check_pass(){
     info "Tesing password strength..."
-    okay=$(cracklib-check <<<"$1" |awk -F': ' '{ print $2}')
+    okay=$(/usr/sbin/cracklib-check<<<"$1" |awk -F': ' '{ print $2}')
     if [[ "$okay" == "OK" ]]; then
 	success "Password accepted... Do not loose this password"
 	return 0

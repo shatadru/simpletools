@@ -417,8 +417,10 @@ function install_pckgs() {
         pckg_check xclip ## Requires to copy the token in clipboard
 	if [ "$package_manager" == "yum" ]; then
 	    pckg_check zbar  ## Requires for reading QR code from image
+	    pckg_check cracklib
         elif [ "$package_manager" == "apt-get" ]; then 
 	    pckg_check zbar-tools
+	    pckg_check libcrack2
 	fi
 }
 function install_main() {

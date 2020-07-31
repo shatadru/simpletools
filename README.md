@@ -3,10 +3,6 @@
 ![GitHub closed issues](https://img.shields.io/github/issues-closed-raw/shatadru/simpletools)
 ![GitHub last commit](https://img.shields.io/github/last-commit/shatadru/simpletools)
 
-## otpgen.sh : 2 Factor Authentication for Linux
-##### Supports : Fedora, Ubuntu, RHEL, Debian (more to be added including CentOS, Manjaro, Mint)
-- Open a new issue for any Linux support and I will try to add it.
-
 ### otpgen CI Status:
 ![Fedora CI](https://github.com/shatadru/simpletools/workflows/Fedora%20CI/badge.svg)
 ![Ubuntu 18.04 CI](https://github.com/shatadru/simpletools/workflows/Ubuntu%2018.04%20CI/badge.svg)
@@ -16,6 +12,11 @@
 ![Debian CI](https://github.com/shatadru/simpletools/workflows/Debian%20CI/badge.svg)
 
 ![Shell-Check CI](https://github.com/shatadru/simpletools/workflows/Shell-Check%20CI/badge.svg)
+
+## otpgen.sh : 2 Factor Authentication for Linux
+##### Supports : Fedora, Ubuntu, RHEL, Debian (more to be added including CentOS, Manjaro, Mint)
+- Open a new issue for any Linux support and I will try to add it.
+##### Help page
 
 ~~~
         otpgen.sh, otpgen:   2 Factor Authettication for Linux

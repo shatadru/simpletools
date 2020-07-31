@@ -10,17 +10,19 @@
 - Open a new issue for any Linux support and I will try to add it.
 
 ~~~
-	otpgen.sh, otpgen:   2 Factor Authentication for Linux
+        otpgen.sh, otpgen:   2 Factor Authettication for Linux
               
                              This tool allows you to generate 2 step verification codes in Linux command line
 
-			     Features:
-				* Generate verification code offline
-				* Support for both HOTP and TOTP based tokens
-				* Automatic setup via QR Code
-				* Add multiple account/keys
+                             Features:
 
-	Syntax:  ./otpgen.sh [-V|--version][-i|--install][--clean-install][-a|--add-key <path to image>] [-l|--list-key][-g|--gen-key]
+                                * Generate verification code offline
+                                * Support for both HOTP and TOTP based tokens
+                                * Automatic setup via QR Code
+                                * Add multiple accounts/keys, list and genetate keys
+                                * Supports : Fedora, Ubuntu, Debian, RHEL (more to be added including CentOS, Manjaro, Mint)
+
+        Syntax:  ./otpgen.sh [-V|--version][-i|--install][--clean-install][-a|--add-key <path to image>] [-l|--list-key][-g|--gen-key]
          -V, --version       Print version
          
          -i, --install       Install otpgen.sh in system
@@ -33,9 +35,18 @@
          
          -g, --gen-key [ID]  Generate one time password
                              Passing ID is optional, else it will ask for ID
-                             for which you want to generate OTP.       
-    
- ~~~
+                             for which you want to generate OTP.  
+         -d, --debug [debug level]  
+                             Determines debug level, Prints messages which 
+                             is greater than or equal to debug level
+                             
+                             4: Debug
+                             3: Info 
+                             2: Warning (Default)
+                             1: Error
+                             0: Silent
+         -s, --silent        Same as "--debug 0"
+~~~
  
 You can read more details in my [Blog link](https://shatadru.in/wordpress/how-to-configure-two-step-authenticator-in-linux-shellgoogle-authenticator-freeotp-alternative/)
 

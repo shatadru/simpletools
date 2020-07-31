@@ -28,10 +28,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-
 ## Variable declarations :
 
-version="0.5-8"
+version="0.7-0"
 
 if [ -n "$SUDO_USER" ] ; then
         USER=$SUDO_USER
@@ -50,6 +49,8 @@ argnum=$((numarg-1))
 install=0
 root=0
 fail_install=0
+debug_var=""
+debug=2
 tempdirname=$(timeout 2 < /dev/urandom  tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
 if [ -z "$tempdirname" ]; then
 	# This can slow down the script
@@ -65,7 +66,35 @@ qr_secret=""
 qr_type=""
 qr_issuer=""
 qr_user=""
+base_dir="$HOME/otpgen"
+keystore_file="$base_dir/.secret_list"
 
+function debug(){
+debug_var="$1"
+case "$debug_var" in
+0)
+  echo "Warning, this will supress error message"
+  debug=0
+  ;;
+1)
+  echo "Warning, this will supress warning message"
+  debug=1
+  ;;
+2)
+  debug=2
+  ;;
+3)
+  debug=3
+  ;;
+4)
+  debug=4
+  ;;
+*)
+  debug=3
+  ;;
+esac
+
+}
 function print_help(){
 	cat > /tmp/."$tempdirname"/helpfile <<EOF
 		
@@ -94,17 +123,28 @@ function print_help(){
          
          -g, --gen-key [ID]  Generate one time password
                              Passing ID is optional, else it will ask for ID
-                             for which you want to generate OTP.       
+                             for which you want to generate OTP.  
+         -d, --debug [debug level]  
+                             Determines debug level, Prints messages which 
+                             is greater than or equal to debug level
+                             
+                             4: Debug
+                             3: Info 
+                             2: Warning (Default)
+                             1: Error
+                             0: Silent
+         -s, --silent        Same as "--debug 0"
 
 Author     : Shatadru Bandyopadhyay(shatadru1@gmail.com)
 Maintainer : Shatadru Bandyopadhyay(shatadru1@gmail.com)
 License    : GPLv3
-
+Link       :  https://github.com/shatadru/simpletools
 EOF
 cat /tmp/."$tempdirname"/helpfile
 
 }
 function print_version(){
+    debug=4
     info "Version: $version"
 }
 function check_root(){
@@ -117,19 +157,28 @@ function check_root(){
     fi
 }
 function fatal_error() {
+    if [ "$debug" -ge 1 ];then
     echo -e "\e[31m\e[1m Fatal Error \e[0m: $1"
+    fi
     cleanup
     exit 255
 }
 
 function info() {
-    echo -e "\e[34m\e[1m Info \e[0m: $1"
+    if [ "$debug" -ge 3 ];then
+    	echo -e "\e[34m\e[1m Info \e[0m: $1"
+    fi
 }
 function warning() {
-    echo -e "\e[33m\e[1m Warning \e[0m: $1 "
+    if [ "$debug" -ge 2 ];then
+   	 echo -e "\e[33m\e[1m Warning \e[0m: $1 "
+    fi
 }
 function success() {
     echo -e "\e[32m\e[1m Success \e[0m: $1 "
+}
+function question() {
+    echo -e "\e[1m\e[96m\e[1m Question \e[0m: $1 "
 }
 function check_version () {
     # Only check update once a day
@@ -253,7 +302,66 @@ function extract_secret_from_image() {
         return 1
     fi
 }
+function encrypt(){
+	out=$(echo "$1"  | openssl enc -aes-256-cbc -md sha512 -pbkdf2 -iter 100000 -salt -k "$happy" -out "$keystore_file" -base64  2> /tmp/."$tempdirname"/encrypt_error )  || out="Encryption failed"
+        if [[ "$out" =~ .*"Encryption failed".* ]];then
+                    if [ $debug -ge 4 ]; then
+                        out+="Output of openssl command:\n"
+                        out+="-----------------------------\n"
+                        out+=$(cat /tmp/."$tempdirname"/encrypt_error)
+                        out+="\n-----------------------------\n"
+                    fi
+                    echo "$out"
+                return 1
+        else
+		echo "$out"
+                return 0
+        fi
 
+
+}
+function decrypt(){
+	out=$(openssl enc  -aes-256-cbc -md sha512 -pbkdf2 -iter 100000 -d -k "$happy" -in "$keystore_file" -base64  2> /tmp/."$tempdirname"/decrypt_error  )  || out="Decryption failed, please re-check your password and try again"
+	if [[ "$out" =~ .*"Decryption failed".* ]];then
+		    if [ $debug -ge 4 ]; then
+			out+="\nOutput of openssl command:\n"
+        		out+="-----------------------------\n"
+        		out+=$(cat /tmp/."$tempdirname"/decrypt_error)
+        		out+="\n-----------------------------\n"
+    		    fi
+		    echo "$out"
+		return 1
+	else
+		echo "$out"
+		return 0
+	fi
+
+}
+
+function ask_pass(){
+mode="$1"
+if [ "$mode" == "create" ];
+	then
+	question "Enter a stong password which will be used to encrypt your tokens..."
+	read -rs happy
+	question "Re-enter the password again to verify"
+	read -rs toohappy
+else 
+	question "Enter keystore password: "
+	read -rs happy
+fi
+}
+function check_pass(){
+    info "Tesing password strength..."
+    okay=$(cracklib-check <<<"$1" |awk -F': ' '{ print $2}')
+    if [[ "$okay" == "OK" ]]; then
+	success "Password accepted... Do not loose this password"
+	return 0
+    else
+	warning "Your password was rejected - $okay, Try again"
+	return 1
+    fi
+}
 
 
 function detect_os() {
@@ -304,10 +412,11 @@ function detect_os() {
 }
 
 function install_pckgs() {
-        pckg_check oathtool
-        pckg_check xclip
+        pckg_check oathtool ## requires for OTP generation
+	pckg_check openssl ## requires for encryption
+        pckg_check xclip ## Requires to copy the token in clipboard
 	if [ "$package_manager" == "yum" ]; then
-	    pckg_check zbar
+	    pckg_check zbar  ## Requires for reading QR code from image
         elif [ "$package_manager" == "apt-get" ]; then 
 	    pckg_check zbar-tools
 	fi
@@ -323,9 +432,27 @@ function install_main() {
             fatal_error "otpgen Already installed. You can re-install using --clean-install"
     else
         echo "Creating required files"
-            mkdir -p "$HOME"/otpgen||failed=1
-        touch  "$HOME"/otpgen/.secret_list||failed=1
-	    if type -p stat; then
+        mkdir -p "$HOME"/otpgen||failed=1
+        ask_pass "create"
+        while(true); do
+		
+    		if [ "$happy" != "$toohappy" ]; then
+    			warning "Passwords do not match! Try again"
+			ask_pass "create"
+			continue
+		else
+			
+        		if check_pass "$happy"  ; then
+	        		break
+			else
+				ask_pass "create"
+				continue
+			fi
+    		fi
+    	done
+	info "Creating encrypted secret store..."
+    	out=$(encrypt "" ) || fatal_error "Key store creation failed... $out "    
+	    if type -p stat 2> /dev/null > /dev/null ; then
 		cur_user=$(stat -c '%U'  "$HOME"/otpgen)
 	    else
 		cur_user=$(find "$HOME"/otpgen -type d -printf "%g" )
@@ -382,13 +509,27 @@ function add_key(){
         fatal_error "OTP type unsupported! Only TOTP and HOTP are supported"
     fi
     secret_val=$qr_secret
-    last_key_id=$(tail -1 "$HOME"/otpgen/.secret_list|awk '{print $1}')
+    # Decrypt file before adding password
+    ask_pass
+    out=$(decrypt)||fatal_error "$out"
+
+    last_key_id=$(echo -n "$out"|tail -1|awk '{print $1}')
     if [ "$qr_type" == "hotp" ] ; then
-        echo "$((last_key_id+1)) $name $secret_val  $qr_type  $qr_issuer  $qr_user 0" >> "$HOME"/otpgen/.secret_list|| fatal_error "Failed to add key, try using sudo or check file permission" && success "Key added successfully"
+        new_line="$((last_key_id+1)) $name $secret_val  $qr_type  $qr_issuer  $qr_user 0"
     else
-        echo "$((last_key_id+1)) $name $secret_val  $qr_type  $qr_issuer  $qr_user" >> "$HOME"/otpgen/.secret_list||fatal_error "Failed to add key, try using sudo or check file permission" && success "Key added successfully"
+	new_line="$((last_key_id+1)) $name $secret_val  $qr_type  $qr_issuer  $qr_user"
     fi
-    remove_image "$image"
+read -r -d "" var << EOM
+$out
+$new_line
+EOM
+if  encrypt "$var" ; then
+	 success "Key added successfully" 
+#    remove_image "$image"
+
+else
+	 fatal_error "Failed to add key, Wrong password?"
+fi
 }
 
 function remove_key(){
@@ -397,14 +538,18 @@ function remove_key(){
 
 function list_keys() {
     check_install
-    line=$(wc -l "$HOME"/otpgen/.secret_list |awk '{print $1}')
-    if [ "$line" == "0" ];
+    # Decrypt the secret file
+    ask_pass
+    out=$(decrypt)||fatal_error "$out"
+    line=$(echo "$out"|wc -l|awk '{print $1}')
+   	
+    if [ -z "$out" ] || [ "$line" == "0" ];
     then 
-        info "No keys installed, use -a or --add-key to install"
+        warning "No keys installed, use -a or --add-key to install"
     else
         echo "ID Secret  TYPE  ISSUER  USER Counter(HOTP)"|awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,$2,$3,$4,$5,$6}'
 
-        awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,"••••••••••••••••••",$3,$4,$5,$6}' "$HOME"/otpgen/.secret_list
+        echo "$out" | awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,"••••••••••••••••••",$3,$4,$5,$6}'
 
     fi
 }
@@ -429,6 +574,9 @@ function clean_install(){
 
 
 function gen_key() {
+	## Decrypt the secret file
+    ask_pass
+    out=$(decrypt)||fatal_error "$out"
 
         index=$1
         if [ -z "$index" ]; then
@@ -438,39 +586,62 @@ function gen_key() {
                 read -r a
         index=$a
         fi
-    no_lines_selected=$(awk -v i="$index" '$1==i {print}' "$HOME"/otpgen/.secret_list|wc -l)
+    no_lines_selected=$(echo "$out"|awk -v i="$index" '$1==i {print}'|wc -l)
     if [ "$no_lines_selected" != "1" ];then
         fatal_error "Unable to generate key for ID: $index, check if ID is correct, run ./otpgen.sh -l to list all keys"
     fi
-        secret=$(awk -v i="$index" '$1==i {print $2}' "$HOME"/otpgen/.secret_list)
-        token_type=$(awk -v i="$index" '$1==i {print $3}' "$HOME"/otpgen/.secret_list)
-        counter=$(awk -v i="$index" '$1==i {print $6}' "$HOME"/otpgen/.secret_list)
+        secret=$(echo "$out"|awk -v i="$index" '$1==i {print $2}' )
+        token_type=$(echo "$out"|awk -v i="$index" '$1==i {print $3}')
+        counter=$(echo "$out"|awk -v i="$index" '$1==i {print $6}')
      
     if [ "$token_type" == "totp" ] ; then     
             token=$(oathtool --base32 --totp "$secret")
         else
         token=$(oathtool --base32 -c "$counter" --hotp "$secret")
         counter=$((counter+1))
-        awk -v i="$index" -v c="$counter" '$1==i{$6=c}{print}' "$HOME"/otpgen/.secret_list > /tmp/."$tempdirname"/.newhotp
-        line_changes=$(sdiff -s  /tmp/."$tempdirname"/.newhotp "$HOME"/otpgen/.secret_list| wc -l)
+        newotp=$(echo "$out"|awk -v i="$index" -v c="$counter" '$1==i{$6=c}{print}' )
+        line_changes=$(sdiff -s  <(echo  "$newotp") <(echo  "$out")| wc -l)
         if [ "$line_changes" == "1" ]; then
-            mv  /tmp/."$tempdirname"/.newhotp "$HOME"/otpgen/.secret_list || fatal_error "Error while incrementing HOTP counter, report this issue @ https://github.com/shatadru/simpletools/issues"
+	encrypt "$newotp" || fatal_error "Error increamenting token, this token might not work! bug detected, report this issue @ https://github.com/shatadru/simpletools/issues"
+
         else
             fatal_error "Error while incrementing HOTP counter, bug detected, report this issue @ https://github.com/shatadru/simpletools/issues"
         fi
         
     fi
     success "OTP : $token"
-    printf "%s" "$token" |xclip -sel clip 2> /dev/null && success "OTP has been copied to clipboard, Ctrl+V to paste"
+    if [[ $(printf "%s" "$token" |xclip -sel clip 2> /dev/null ) ]]; then
+	 success "OTP has been copied to clipboard, Ctrl+V to paste" 
+    else
 
+	warning "OTP was not copied in clipboard, *NOTE* this does not work via ssh"
+    fi
 
 }
+# Cleanup tempfiles
 function cleanup(){
 	if [ -n "$tempdirname" ]; then
- 		rm -rf /tmp/."$tempdirname"/*
-		rmdir /tmp/."$tempdirname"
+ 		rm -rf /tmp/."$tempdirname"/
  	fi
 }
+
+
+### Parse debug level cmdline args
+for i in $(seq 0 "$argnum"); do
+        key=${args[$i]}
+        key2=${args[$((i+1))]}
+        case $key in
+		-d|--debug)
+                        debug "$key2"
+                ;;
+		-s|--silent)
+                        debug 0 
+                ;;
+                *)
+                ;;
+        esac
+done
+
 check_version
 detect_os
 check_root
@@ -480,15 +651,15 @@ else
     info "Running without root priviledge"
 fi
 
-# Command line arg handling...
 
+# Parse command line arguments
 for i in $(seq 0 "$argnum"); do
         key=${args[$i]}
         key2=${args[$((i+1))]}
         key3=${args[$((i+2))]}
 
         case $key in
-                -i|--install)
+		-i|--install)
                         install_main
                 ;;
                 -a|--add-key)
@@ -526,4 +697,7 @@ for i in $(seq 0 "$argnum"); do
                 ;;
         esac
 done
+
+
+# Command line arg handling...
 cleanup

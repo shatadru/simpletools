@@ -1,3 +1,3 @@
 #!/bin/bash
 set -e
-echo y|  sudo bash -x ./otpgen/otpgen.sh --clean-install
+printf 'Y\nStorngPass123!\nStorngPass123!\n'|   sudo bash -x ./otpgen/otpgen.sh --clean-install

@@ -535,7 +535,35 @@ fi
 }
 
 function remove_key(){
-    fatal_error "Feature is not implemented yet...."
+    #fatal_error "Feature is not implemented yet...."
+    ask_pass
+    out=$(decrypt)||fatal_error "$out"
+        index=$1
+        if [ -z "$index" ]; then
+                list_keys
+                echo "Which key do you want to select?"
+                read -r a
+        index=$a
+        fi
+    no_lines_selected=$(echo "$out"|awk -v i="$index" '$1==i {print}'|wc -l)
+    if [ "$no_lines_selected" != "1" ];then
+        fatal_error "Unable to find key with ID: $index, check if ID is correct, run ./otpgen.sh -l to list all keys"
+    else
+	newotp=$(echo "$out"|sed "/^$index /d")
+	line_changes=$(sdiff -s  <(echo  "$newotp") <(echo  "$out")| wc -l)
+        if [ "$line_changes" == "1" ]; then
+		question "Are you sure you want to delete key with ID: $index? Press Enter to continue, Ctrl+C to exit ..."
+		read -r a
+		if  encrypt "$newotp" ; then
+        		 success "Key removed successfully"
+		else
+         		fatal_error "Failed to remove key, Wrong password?"
+		fi
+	else
+		fatal_error "Bug detected, report this issue @ https://github.com/shatadru/simpletools/issues"
+	fi
+fi
+
 }
 
 function list_keys() {
@@ -567,7 +595,7 @@ fi
 
 
 function clean_install(){
-    warning "This will remove all existing keys, Press any key to continue, Ctrl+C to exit ..."
+    warning "This will remove all existing keys, Press Enter to continue, Ctrl+C to exit ..."
     read -r a
     rm -rf "$HOME"/otpgen || fatal_error "Unable to run command #rm -rf $HOME/otpgen, try with sudo or run this from root user #rm -rf $HOME/otpgen "
     install_main

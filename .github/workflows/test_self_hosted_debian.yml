@@ -52,4 +52,5 @@ jobs:
     - name: Test  7 - generate OTP
       run: bash ./ci/gen_key.sh
 
-   ## TODO: test add key, list_key, gen_key (both HOTP, TOTP)
+    - name: Test  8 - remove OTP
+      run: bash ./ci/rm_key.sh

@@ -30,7 +30,7 @@
 
 ## Variable declarations :
 
-version="0.7-0"
+version="0.7-2"
 
 if [ -n "$SUDO_USER" ] ; then
         USER=$SUDO_USER
@@ -107,10 +107,12 @@ function print_help(){
 				* Generate verification code offline
 				* Support for both HOTP and TOTP based tokens
 				* Automatic setup via QR Code
-				* Add multiple accounts/keys, list and genetate keys
+				* Add multiple accounts/2FA, list, remove and genetate 2FA tokens
 				* Supports : Fedora, Ubuntu, Debian, RHEL (more to be added including CentOS, Manjaro, Mint)
+                                * CI tests all features automatically for all supported distro
 
-	Syntax:  ./otpgen.sh [-V|--version][-i|--install][--clean-install][-a|--add-key <path to image>] [-l|--list-key][-g|--gen-key]
+	Syntax:  ./otpgen.sh [-V|--version] [-d|--debug level] [-s] [-i|--install] [--clean-install] [-a|--add-key <path to image>] [-l|--list-key] [-g|--gen-key] [-r|--remove-key]
+
          -V, --version       Print version
          
          -i, --install       Install otpgen.sh in system
@@ -122,8 +124,11 @@ function print_help(){
          -l, --list-key      List all available 2FA stored in the system
          
          -g, --gen-key [ID]  Generate one time password
-                             Passing ID is optional, else it will ask for ID
-                             for which you want to generate OTP.  
+                             Passing ID is optional, else it will list all 2FA and ask for ID
+                             for which you want to generate OTP. 
+         -r  [ID]	     Remove a 2FA token from keystore 
+          --remove-key [ID]  Passing ID is optional, else it will list all 2FA and ask for ID
+                             for which one you would like to remove
          -d, --debug [debug level]  
                              Determines debug level, Prints messages which 
                              is greater than or equal to debug level
@@ -471,7 +476,7 @@ function install_main() {
 }
 function remove_image(){
 	img_file=$1
-	warning "The image contains your secret for OTP generation, you should delete this file as key has been added"
+	warning "The image contains your secret for OTP generation, you should delete this file as 2FA has been added"
 	echo "Do you want to delete the image? [Y/N]"
 	read -r answer
 	if [ "$answer" == "y" ]|| [ "$answer" == "Y" ]; then
@@ -484,21 +489,18 @@ function remove_image(){
 }
 function add_key(){
     image=$1
-    name=$2
 
     if [ -z "$image" ]; then
             fatal_error "Image file not supplied, please add a image file containing QR Code"
     fi
 
     if [ ! -f "$image" ]; then
-            fatal_error "File not found, cant add key..."
+            fatal_error "File not found, cant add 2FA..."
     fi
 
     echo -en "Detecting QR Code from supplied image.";sleep .3; echo -en "." ; sleep .3 ; echo -en "."; echo
-    extract_secret_from_image "$image"
-    exit_stat=$?
 
-    if [ "$exit_stat" != "0" ]; then
+    if ! extract_secret_from_image "$image" ; then
         fatal_error "Failed to detect usable QR Code..."
 
     fi 
@@ -514,23 +516,30 @@ function add_key(){
     # Decrypt file before adding password
     ask_pass
     out=$(decrypt)||fatal_error "$out"
-
+    check_dups=$(echo -n "$out"|grep  $qr_issuer|grep  $qr_user|grep "$secret_val"|grep "$qr_type")
+    if [ ! -z "$check_dups" ]; then
+	
+	warning "2FA is already added in keystore..."
+	echo "ID Secret  TYPE  ISSUER  USER Counter(HOTP)"|awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,$2,$3,$4,$5,$6}'
+        echo "$check_dups" | awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,"••••••••••••••••••",$3,$4,$5,$6}'
+    	fatal_error "Not adding duplicate entry..."
+    fi
     last_key_id=$(echo -n "$out"|tail -1|awk '{print $1}')
     if [ "$qr_type" == "hotp" ] ; then
-        new_line="$((last_key_id+1)) $name $secret_val  $qr_type  $qr_issuer  $qr_user 0"
+        new_line="$((last_key_id+1))  $secret_val  $qr_type  $qr_issuer  $qr_user 0"
     else
-	new_line="$((last_key_id+1)) $name $secret_val  $qr_type  $qr_issuer  $qr_user"
+	new_line="$((last_key_id+1))  $secret_val  $qr_type  $qr_issuer  $qr_user"
     fi
 read -r -d "" var << EOM
 $out
 $new_line
 EOM
 if  encrypt "$var" ; then
-	 success "Key added successfully" 
+	 success "New 2FA added successfully" 
 #    remove_image "$image"
 
 else
-	 fatal_error "Failed to add key, Wrong password?"
+	 fatal_error "Failed to add 2FA, Wrong password?"
 fi
 }
 
@@ -541,23 +550,23 @@ function remove_key(){
         index=$1
         if [ -z "$index" ]; then
                 list_keys
-                echo "Which key do you want to select?"
+                echo "Which 2FA do you want to select?"
                 read -r a
         index=$a
         fi
     no_lines_selected=$(echo "$out"|awk -v i="$index" '$1==i {print}'|wc -l)
     if [ "$no_lines_selected" != "1" ];then
-        fatal_error "Unable to find key with ID: $index, check if ID is correct, run ./otpgen.sh -l to list all keys"
+        fatal_error "Unable to find a 2FA with ID: $index, check if ID is correct, run ./otpgen.sh -l to list all 2FA"
     else
 	newotp=$(echo "$out"|sed "/^$index /d")
 	line_changes=$(sdiff -s  <(echo  "$newotp") <(echo  "$out")| wc -l)
         if [ "$line_changes" == "1" ]; then
-		question "Are you sure you want to delete key with ID: $index? Press Enter to continue, Ctrl+C to exit ..."
+		question "Are you sure you want to 2FA with ID: $index? Press Enter to continue, Ctrl+C to exit ..."
 		read -r a
 		if  encrypt "$newotp" ; then
-        		 success "Key removed successfully"
+        		 success "2FA removed successfully"
 		else
-         		fatal_error "Failed to remove key, Wrong password?"
+         		fatal_error "Failed to remove 2FA, Wrong password?"
 		fi
 	else
 		fatal_error "Bug detected, report this issue @ https://github.com/shatadru/simpletools/issues"
@@ -575,7 +584,7 @@ function list_keys() {
    	
     if [ -z "$out" ] || [ "$line" == "0" ];
     then 
-        warning "No keys installed, use -a or --add-key to install"
+        warning "No 2FA found in keystore, use -a or --add-key to add new 2FA"
     else
         echo "ID Secret  TYPE  ISSUER  USER Counter(HOTP)"|awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,$2,$3,$4,$5,$6}'
 
@@ -595,7 +604,7 @@ fi
 
 
 function clean_install(){
-    warning "This will remove all existing keys, Press Enter to continue, Ctrl+C to exit ..."
+    warning "This will remove all existing 2FA, Press Enter to continue, Ctrl+C to exit ..."
     read -r a
     rm -rf "$HOME"/otpgen || fatal_error "Unable to run command #rm -rf $HOME/otpgen, try with sudo or run this from root user #rm -rf $HOME/otpgen "
     install_main
@@ -612,13 +621,13 @@ function gen_key() {
         if [ -z "$index" ]; then
 
                 list_keys
-                echo "Which key do you want to select?"
+                echo "Which 2FA do you want to select?"
                 read -r a
         index=$a
         fi
     no_lines_selected=$(echo "$out"|awk -v i="$index" '$1==i {print}'|wc -l)
     if [ "$no_lines_selected" != "1" ];then
-        fatal_error "Unable to generate key for ID: $index, check if ID is correct, run ./otpgen.sh -l to list all keys"
+        fatal_error "Unable to generate 2FA token for ID: $index, check if ID is correct, run ./otpgen.sh -l to list all 2FA"
     fi
         secret=$(echo "$out"|awk -v i="$index" '$1==i {print $2}' )
         token_type=$(echo "$out"|awk -v i="$index" '$1==i {print $3}')

@@ -30,7 +30,7 @@
 
 ## Variable declarations :
 
-version="0.7-2"
+version="0.7-5"
 
 if [ -n "$SUDO_USER" ] ; then
         USER=$SUDO_USER
@@ -42,6 +42,14 @@ fi
 
 HOME=$(bash <<< "echo ~${SUDO_USER:-}")
 export HOME
+
+if [ -z "${BASH_SOURCE[0]}" ] ; then 
+	bin=1
+else
+	bin=0
+	ABSOLUTE_SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")"  >/dev/null 2>&1 && pwd)/$(basename "${BASH_SOURCE[0]}")"
+fi
+
 os=""
 args=( "$@" )
 numarg=$#
@@ -192,16 +200,15 @@ function check_version () {
     if [ ! -f "$HOME"/otpgen/.check_update ] || [ "$check_update_cache" == "1" ]; then
     
     info "Checking for updates of otpgen.sh"
-    SCRIPT=$(readlink -f "$0")
-    md5sum_local=$(md5sum "$SCRIPT"|awk '{print $1}')
+    SCRIPT=$ABSOLUTE_SCRIPT_PATH
     curl -s -H 'Cache-Control: no-cache'  https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen/otpgen.sh > /tmp/."$tempdirname"/otpgen.sh 
     curl_error=$?
     
     if [ "$curl_error" == "0" ]; then
 
-        md5sum_remote=$(md5sum /tmp/."$tempdirname"/otpgen.sh|awk '{print $1}')
+        remote_version=$(grep -i version= /tmp/."$tempdirname"/otpgen.sh|cut -f2 -d "\"")
 
-        if [ "$md5sum_local" == "$md5sum_remote" ] ; then 
+        if (( $(echo "$remote_version" >= "$version" |bc -l) )); then
             success "The script is at latest available version"
         else
             warning "Using older version of script"
@@ -380,7 +387,7 @@ function detect_os() {
 
         Linux|GNU*)
             os=Linux
-        ;;
+        ;; 
 
         *BSD|DragonFly|Bitrig)
             os=BSD
@@ -420,25 +427,72 @@ function install_pckgs() {
         pckg_check oathtool ## requires for OTP generation
 	pckg_check openssl ## requires for encryption
         pckg_check xclip ## Requires to copy the token in clipboard
+	pckg_check shc ## Requires to compile an untraceable binary for security
 	if [ "$package_manager" == "yum" ]; then
 	    pckg_check zbar  ## Requires for reading QR code from image
-	    pckg_check cracklib
+	    pckg_check cracklib ## Requires to check password strength
         elif [ "$package_manager" == "apt-get" ]; then 
-	    pckg_check zbar-tools
-	    pckg_check libcrack2
+	    pckg_check zbar-tools ## Requires for reading QR code from image
+	    pckg_check libcrack2 ## Requires to compile an untraceable binary for security
 	fi
 }
+
+function install_bin_local_path() {
+
+	info "Installing compiled binary in $HOME/.local/bin/otpgen"
+	
+	if [ $1 == "1" ] ; then	
+		info "You can run $HOME/.local/bin/otpgen to run updated version, running just #otpgen will invoke /usr/bin/otpgen(lower version)"
+	fi
+	mkdir -p "$HOME"/.local/bin
+	shc -Uf "$ABSOLUTE_SCRIPT_PATH" -o "$HOME"/.local/bin/otpgen ||failed=1
+	check_path=$(echo "$PAT
+H"| grep -i "$HOME"/.local/bin)
+	if [ -z "$check_path" ];then
+		info "Modifying PATH variable to add "$HOME"/.local/bin"
+		info "PATH=$PATH:$HOME/.local/bin" >> "$HOME"/.bash_profile
+		info "export PATH"  >> "$HOME"/.bash_profile
+		info "To use otpgen run this command :"
+		info "source "$HOME"/.bash_profile"
+	fi
+
+}
+
 function install_main() {
-    echo -en "Checking for required packages.";sleep .3; echo -en "." ; sleep .3 ; echo -en "."
+
+### Installation has 3 steps 
+## 1. Ensure system has required packages
+## 2. Create files under ~/.otpgen  ### TODO consider using ~/.config/otpgen/
+
+## 3. Encrypted keystore
+## 4. Compiled binary 
+
+
+# Installation always run with higher debug mode
+
+old_debug=$debug
+debug=4
+
+## Check if we are running from compiled shc binary 
+
+    if [ "$bin" == "1" ];then
+	fatal_error "Installation cant run from compiled binary, you need to use the shell script for installation, use --help for more details"
+    fi
+
+## 1. Ensure system has required packages
+    info "Checking for required packages.";sleep .3; echo -en "." ; sleep .3 ; echo -en "."
         install_pckgs
     echo
     if [ "$fail_install" == "1" ];then
         fatal_error "Please install required packages before proceeding."
     fi
+
+## 2. Create files under ~/.otpgen
+	
     if [ -d "$HOME/otpgen" ];then
             fatal_error "otpgen Already installed. You can re-install using --clean-install"
     else
-        echo "Creating required files"
+        info "Creating required files"
         mkdir -p "$HOME"/otpgen||failed=1
         ask_pass "create"
         while(true); do
@@ -457,20 +511,48 @@ function install_main() {
 			fi
     		fi
     	done
+
+## 3. Encrypted keystore
 	info "Creating encrypted secret store..."
     	out=$(encrypt "" ) || fatal_error "Key store creation failed... $out "    
-	    if type -p stat 2> /dev/null > /dev/null ; then
+	if type -p stat 2> /dev/null > /dev/null ; then
 		cur_user=$(stat -c '%U'  "$HOME"/otpgen)
-	    else
-		cur_user=$(find "$HOME"/otpgen -type d -printf "%g" )
-	    fi
-	    if [ "$cur_user" != "$USER" ]; then
-	            chown -R "$USER":"$USER" "$HOME"/otpgen||failed=1
-	    fi
+	else
+	cur_user=$(find "$HOME"/otpgen -type d -printf "%g" )
+	fi
+	if [ "$cur_user" != "$USER" ]; then
+		chown -R "$USER":"$USER" "$HOME"/otpgen||failed=1
+	fi
+	
+
+
+## 4. Compiled binary 
+	info "Installing compiled binary..."
+	if [ "$root" == "1" ] ; then
+		info "Installing compiled binary in /usr/bin/otpgen"
+		sudo shc -Uf "$ABSOLUTE_SCRIPT_PATH" -o /usr/bin/otpgen	||failed=1
+	else
+		if [ -f "/usr/bin/otpgen" ]; then
+			warning "otpgen binary is already installed globally (/usr/bin)"
+			binary_version=$(/usr/bin/otpgen -V -d 2|awk {'print $NF'})
+			if (( $(echo "$binary_version" <= "$version" |bc -l) )); then
+				warning "You are trying to install version=$version and globally installed version=$(/usr/bin/otpgen -V|awk {'print $NF'}|tr '\n' ' ')"
+				warning "/usr/bin/otpgen can not updated due to insufficient priviledge"
+				install_bin_local_path 1
+			fi
+
+		else
+				install_bin_local_path 0
+		fi
+
+	fi
+
+
+	debug=$old_debug
         if [  -z "$failed" ]; then
             success "Installation successful"
         else
-            fatal_error "Unhandled Error, probably permission issues(?), You can re-install using --clean-install"
+            fatal_error "Unhandled Error, probably permission issues(?), You can try to re-install using --clean-install"
         fi
     fi
 }
@@ -516,8 +598,8 @@ function add_key(){
     # Decrypt file before adding password
     ask_pass
     out=$(decrypt)||fatal_error "$out"
-    check_dups=$(echo -n "$out"|grep  $qr_issuer|grep  $qr_user|grep "$secret_val"|grep "$qr_type")
-    if [ ! -z "$check_dups" ]; then
+    check_dups=$(echo -n "$out"|grep  "$qr_issuer"|grep  "$qr_user"|grep "$secret_val"|grep "$qr_type")
+    if [ -n "$check_dups" ]; then
 	
 	warning "2FA is already added in keystore..."
 	echo "ID Secret  TYPE  ISSUER  USER Counter(HOTP)"|awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,$2,$3,$4,$5,$6}'

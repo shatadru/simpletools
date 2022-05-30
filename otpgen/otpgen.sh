@@ -12,7 +12,7 @@
 # OBTAIN THE LATEST VERSION OF THE SCRIPT AT :  https://github.com/shatadru/simpletools/blob/master/otpgen/otpgen.sh
 #                       DIRECT DOWNLOAD LINK : https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen/otpgen.sh
 
-# 
+#
 # Licenced under GPLv3, check LICENSE.txt
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,10 +51,10 @@ root=0
 fail_install=0
 debug_var=""
 debug=2
-tempdirname=$(timeout 2 < /dev/urandom  tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
+tempdirname=$(mktemp -d)
 if [ -z "$tempdirname" ]; then
 	# This can slow down the script
-	tempdirname=$(curl -s "https://www.random.org/strings/?num=1&len=8&digits=on&upperalpha=on&loweralpha=on&unique=on&format=plain&rnd=new")
+	tempdirname=$(timeout 2 < /dev/urandom  tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
 fi
 
 if [ -z "$tempdirname" ]; then
@@ -97,9 +97,9 @@ esac
 }
 function print_help(){
 	cat > /tmp/."$tempdirname"/helpfile <<EOF
-		
+
 	otpgen.sh, otpgen:   2 Factor Authettication for Linux
-              
+
                              This tool allows you to generate 2 step verification codes in Linux command line
 
 			     Features:
@@ -114,27 +114,27 @@ function print_help(){
 	Syntax:  ./otpgen.sh [-V|--version] [-d|--debug level] [-s] [-i|--install] [--clean-install] [-a|--add-key <path to image>] [-l|--list-key] [-g|--gen-key] [-r|--remove-key]
 
          -V, --version       Print version
-         
+
          -i, --install       Install otpgen.sh in system
-                  
+
          --clean-install     Clean any local data and re-install
-         
+
          -a, --add-key FILE  Add a new 2FA from image containing QR Code
-         
+
          -l, --list-key      List all available 2FA stored in the system
-         
+
          -g, --gen-key [ID]  Generate one time password
                              Passing ID is optional, else it will list all 2FA and ask for ID
-                             for which you want to generate OTP. 
-         -r  [ID]	     Remove a 2FA token from keystore 
+                             for which you want to generate OTP.
+         -r  [ID]	     Remove a 2FA token from keystore
           --remove-key [ID]  Passing ID is optional, else it will list all 2FA and ask for ID
                              for which one you would like to remove
-         -d, --debug [debug level]  
-                             Determines debug level, Prints messages which 
+         -d, --debug [debug level]
+                             Determines debug level, Prints messages which
                              is greater than or equal to debug level
-                             
+
                              4: Debug
-                             3: Info 
+                             3: Info
                              2: Warning (Default)
                              1: Error
                              0: Silent
@@ -190,28 +190,28 @@ function check_version () {
     # Check if update check was performed recently
     check_update_cache=$(find "$HOME"/otpgen/ -mtime +1 -name .check_update 2> /dev/null|wc -l)
     if [ ! -f "$HOME"/otpgen/.check_update ] || [ "$check_update_cache" == "1" ]; then
-    
+
     info "Checking for updates of otpgen.sh"
     SCRIPT=$(readlink -f "$0")
     md5sum_local=$(md5sum "$SCRIPT"|awk '{print $1}')
-    curl -s -H 'Cache-Control: no-cache'  https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen/otpgen.sh > /tmp/."$tempdirname"/otpgen.sh 
+    curl -s -H 'Cache-Control: no-cache'  https://raw.githubusercontent.com/shatadru/simpletools/master/otpgen/otpgen.sh > /tmp/."$tempdirname"/otpgen.sh
     curl_error=$?
-    
+
     if [ "$curl_error" == "0" ]; then
 
         md5sum_remote=$(md5sum /tmp/."$tempdirname"/otpgen.sh|awk '{print $1}')
 
-        if [ "$md5sum_local" == "$md5sum_remote" ] ; then 
+        if [ "$md5sum_local" == "$md5sum_remote" ] ; then
             success "The script is at latest available version"
         else
             warning "Using older version of script"
             info "Get latest source at https://github.com/shatadru/simpletools/blob/master/otpgen.sh"
         fi
 	    touch "$HOME"/otpgen/.check_update
-    else    
-        warning "Unable to get check for update, curl failed" 
+    else
+        warning "Unable to get check for update, curl failed"
         curl_error_meaning=$(man curl|grep -i -A176 "exit codes"|awk '$1=='$curl_error'{print}')
-        echo " Curl Error: $curl_error_meaning" 
+        echo " Curl Error: $curl_error_meaning"
     fi
 
    else
@@ -239,7 +239,7 @@ fi
                         info "If you have sudo priviledge you can run this command with sudo"
                         fail_install=1
                 fi
-                        
+
         fi
 
 }
@@ -252,7 +252,7 @@ function install_command(){
 		alias yum='dnf'
 	fi
         yum install "$pckg" -y && info "$pckg was successfully installed" || fail_install=1
-    elif [ "$package_manager" == "apt-get" ]; then 
+    elif [ "$package_manager" == "apt-get" ]; then
         apt-get install "$pckg" -y  && info "$pckg was successfully installed"  || fail_install=1
     else
  	   info "Install $pckg in your distro"
@@ -269,7 +269,7 @@ function print_command(){
         info "  # $package_manager install $pckg -y"
     else
   	  echo "Install $pckg in your distro"
-    fi    
+    fi
 }
 
 function urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
@@ -279,14 +279,14 @@ function extract_secret_from_image() {
         img=$1
     out=$(/usr/bin/zbarimg  "$img"  2> /tmp/."$tempdirname"/error)
     zbar_exit=$?
-    if [ "$zbar_exit" ==  "0" ]; then 
-        
+    if [ "$zbar_exit" ==  "0" ]; then
+
         decode=$(urldecode "$out")
             qr_secret=$(echo "$decode"|grep -i secret=|cut -f2 -d "="  |cut -f "1" -d "&")
         qr_issuer=$(echo "$decode"|grep -i secret=|grep -io "issuer.*"|cut -f2 -d "="|sed 's/ /_/g')
         qr_user=$(echo "$decode"|grep -i secret=|cut -f4 -d "/"|cut -f2 -d ":"|cut -f1 -d "?")
         qr_type=$(echo "$decode"|grep -i secret=|cut -f3 -d "/")
-        
+
             return 0
     elif [ "$zbar_exit" ==  "1" ]; then
         echo "An error occured while processing image";echo
@@ -302,7 +302,7 @@ function extract_secret_from_image() {
         cat /tmp/."$tempdirname"/error
         fatal_error "No barcode was detected in supplied image.."
         return 1
-    else 
+    else
         fatal_error "Unhandled error from zbarimg while processing image"
         return 1
     fi
@@ -351,7 +351,7 @@ if [ "$mode" == "create" ];
 	read -rs happy
 	question "Re-enter the password again to verify"
 	read -rs toohappy
-else 
+else
 	question "Enter keystore password: "
 	read -rs happy
 fi
@@ -391,8 +391,8 @@ function detect_os() {
         ;;
 
         *)
-            warning "Unknown OS detected: $os aborting..." 
-            fatal_error "Open an issue on GitHub to add support for your OS." 
+            warning "Unknown OS detected: $os aborting..."
+            fatal_error "Open an issue on GitHub to add support for your OS."
         ;;
        esac
 
@@ -410,7 +410,7 @@ function detect_os() {
                 package_manager="apt-get"
 	#elif [ "$os" == "arch" ] || [ "$os_like" == "arch" ]; then
 	#	package_manager="pacman"
-	
+
 	else
 		fatal_error "Distro is not supported right now, Open an issue on GitHub to add support for your Distro."
         fi
@@ -423,7 +423,7 @@ function install_pckgs() {
 	if [ "$package_manager" == "yum" ]; then
 	    pckg_check zbar  ## Requires for reading QR code from image
 	    pckg_check cracklib
-        elif [ "$package_manager" == "apt-get" ]; then 
+        elif [ "$package_manager" == "apt-get" ]; then
 	    pckg_check zbar-tools
 	    pckg_check libcrack2
 	fi
@@ -442,13 +442,13 @@ function install_main() {
         mkdir -p "$HOME"/otpgen||failed=1
         ask_pass "create"
         while(true); do
-		
+
     		if [ "$happy" != "$toohappy" ]; then
     			warning "Passwords do not match! Try again"
 			ask_pass "create"
 			continue
 		else
-			
+
         		if check_pass "$happy"  ; then
 	        		break
 			else
@@ -458,7 +458,7 @@ function install_main() {
     		fi
     	done
 	info "Creating encrypted secret store..."
-    	out=$(encrypt "" ) || fatal_error "Key store creation failed... $out "    
+    	out=$(encrypt "" ) || fatal_error "Key store creation failed... $out "
 	    if type -p stat 2> /dev/null > /dev/null ; then
 		cur_user=$(stat -c '%U'  "$HOME"/otpgen)
 	    else
@@ -503,7 +503,7 @@ function add_key(){
     if ! extract_secret_from_image "$image" ; then
         fatal_error "Failed to detect usable QR Code..."
 
-    fi 
+    fi
 
     if [ "$qr_type" == "totp" ]; then
         info "TOTP token detected"
@@ -518,7 +518,7 @@ function add_key(){
     out=$(decrypt)||fatal_error "$out"
     check_dups=$(echo -n "$out"|grep  $qr_issuer|grep  $qr_user|grep "$secret_val"|grep "$qr_type")
     if [ ! -z "$check_dups" ]; then
-	
+
 	warning "2FA is already added in keystore..."
 	echo "ID Secret  TYPE  ISSUER  USER Counter(HOTP)"|awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,$2,$3,$4,$5,$6}'
         echo "$check_dups" | awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,"••••••••••••••••••",$3,$4,$5,$6}'
@@ -535,7 +535,7 @@ $out
 $new_line
 EOM
 if  encrypt "$var" ; then
-	 success "New 2FA added successfully" 
+	 success "New 2FA added successfully"
 #    remove_image "$image"
 
 else
@@ -581,9 +581,9 @@ function list_keys() {
     ask_pass
     out=$(decrypt)||fatal_error "$out"
     line=$(echo "$out"|wc -l|awk '{print $1}')
-   	
+
     if [ -z "$out" ] || [ "$line" == "0" ];
-    then 
+    then
         warning "No 2FA found in keystore, use -a or --add-key to add new 2FA"
     else
         echo "ID Secret  TYPE  ISSUER  USER Counter(HOTP)"|awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,$2,$3,$4,$5,$6}'
@@ -598,7 +598,7 @@ if [ -d "$HOME/otpgen" ];then
     return 0
 else
         fatal_error "Seems otpgen is not installed, please install using -i/--install"
-    
+
 fi
 }
 
@@ -632,8 +632,8 @@ function gen_key() {
         secret=$(echo "$out"|awk -v i="$index" '$1==i {print $2}' )
         token_type=$(echo "$out"|awk -v i="$index" '$1==i {print $3}')
         counter=$(echo "$out"|awk -v i="$index" '$1==i {print $6}')
-     
-    if [ "$token_type" == "totp" ] ; then     
+
+    if [ "$token_type" == "totp" ] ; then
             token=$(oathtool --base32 --totp "$secret")
         else
         token=$(oathtool --base32 -c "$counter" --hotp "$secret")
@@ -646,11 +646,11 @@ function gen_key() {
         else
             fatal_error "Error while incrementing HOTP counter, bug detected, report this issue @ https://github.com/shatadru/simpletools/issues"
         fi
-        
+
     fi
     success "OTP : $token"
     if [[ $(printf "%s" "$token" |xclip -sel clip 2> /dev/null ) ]]; then
-	 success "OTP has been copied to clipboard, Ctrl+V to paste" 
+	 success "OTP has been copied to clipboard, Ctrl+V to paste"
     else
 
 	warning "OTP was not copied in clipboard, *NOTE* this does not work via ssh"
@@ -674,7 +674,7 @@ for i in $(seq 0 "$argnum"); do
                         debug "$key2"
                 ;;
 		-s|--silent)
-                        debug 0 
+                        debug 0
                 ;;
                 *)
                 ;;

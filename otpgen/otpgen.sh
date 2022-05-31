@@ -249,7 +249,8 @@ function install_command(){
     pckg=$1
     if [  "$package_manager" == "yum" ] ; then
 	if type -p dnf > /dev/null 2> /dev/null; then
-		alias yum='dnf'
+		yum() { dnf "$@"; }
+
 	fi
         yum install "$pckg" -y && info "$pckg was successfully installed" || fail_install=1
     elif [ "$package_manager" == "apt-get" ]; then
@@ -516,8 +517,8 @@ function add_key(){
     # Decrypt file before adding password
     ask_pass
     out=$(decrypt)||fatal_error "$out"
-    check_dups=$(echo -n "$out"|grep  $qr_issuer|grep  $qr_user|grep "$secret_val"|grep "$qr_type")
-    if [ ! -z "$check_dups" ]; then
+    check_dups="$(echo -n "$out"|grep  "$qr_issuer"|grep  "$qr_user"|grep "$secret_val"|grep "$qr_type")"
+    if [ -n "$check_dups" ]; then
 
 	warning "2FA is already added in keystore..."
 	echo "ID Secret  TYPE  ISSUER  USER Counter(HOTP)"|awk '{printf "%2s %30s %6s %20s %30s %20s \n", $1,$2,$3,$4,$5,$6}'

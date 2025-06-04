@@ -53,8 +53,8 @@ debug_var=""
 debug=2
 tempdirname=$(mktemp -d)
 if [ -z "$tempdirname" ]; then
-	# This can slow down the script
-	tempdirname=$(timeout 2 < /dev/urandom  tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
+        # This can slow down the script
+        tempdirname=$(timeout 2 tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 10 | head -n 1)
 fi
 
 if [ -z "$tempdirname" ]; then

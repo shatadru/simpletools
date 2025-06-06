@@ -53,7 +53,7 @@ jobs:
     - name: Run tests with QR support
       if: matrix.with-qr
       env:
-        OTPGEN_PASSWORD: "RedHat@123$"
+        OTPGEN_PASSWORD: "Test@123"
         WITH_QR: "true"
       run: |
         python -m pytest test_otpgen.py -v
@@ -61,7 +61,7 @@ jobs:
     - name: Run tests without QR support
       if: matrix.with-qr == false
       env:
-        OTPGEN_PASSWORD: "RedHat@123$"
+        OTPGEN_PASSWORD: "Test@123"
         WITH_QR: "false"
       run: |
         python -m pytest test_otpgen.py -v -k "not test_generate_test_qr and not test_add_key and not test_gen_key and not test_remove_key"

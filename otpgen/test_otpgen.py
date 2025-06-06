@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 
 # Test configuration
-TEST_PASSWORD = "RedHat@123$"
+TEST_PASSWORD = "Test@123"
 TEST_ENV = {
     "OTPGEN_PASSWORD": TEST_PASSWORD,
     "DYLD_LIBRARY_PATH": "/opt/homebrew/lib",  # For macOS

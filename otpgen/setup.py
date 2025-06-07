@@ -8,6 +8,7 @@ import sys
 import subprocess
 import shutil
 from pathlib import Path
+from setuptools import setup, find_packages
 
 def check_python_version():
     """Check if Python version is compatible"""
@@ -122,3 +123,25 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Setup failed: {e}")
         sys.exit(1)
+
+setup(
+    name="otpgen",
+    version="0.1.0",
+    packages=find_packages(),
+    install_requires=[
+        "pyotp>=2.6.0",
+        "cryptography>=3.4.8",
+        "pillow>=8.3.2",
+        "pyzbar>=0.1.8",
+        "pyperclip>=1.8.2",
+        "requests>=2.25.1",
+        "qrcode>=7.4.2",
+        "pypng",
+    ],
+    python_requires=">=3.9",
+    entry_points={
+        "console_scripts": [
+            "otpgen=otpgen.otpgen:main",
+        ],
+    },
+)

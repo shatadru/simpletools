@@ -4,6 +4,7 @@ import pytest
 import subprocess
 from pathlib import Path
 import re
+import signal
 
 # Test environment
 TEST_ENV = {
@@ -13,7 +14,7 @@ TEST_ENV = {
     **os.environ
 }
 
-def run_otpgen(args, env=None, input_text=None):
+def run_otpgen(args, env=None, input_text=None, timeout=10):
     """Run otpgen.sh with given arguments."""
     if env is None:
         env = TEST_ENV
@@ -27,13 +28,20 @@ def run_otpgen(args, env=None, input_text=None):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            env=env
+            env=env,
+            preexec_fn=os.setsid  # Create new process group
         )
 
-        if input_text:
-            stdout, stderr = process.communicate(input=input_text)
-        else:
-            stdout, stderr = process.communicate()
+        try:
+            if input_text:
+                stdout, stderr = process.communicate(input=input_text, timeout=timeout)
+            else:
+                stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # Kill the process group
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            process.wait()
+            raise TimeoutError(f"Command timed out after {timeout} seconds")
 
         return subprocess.CompletedProcess(
             args=["./otpgen.sh"] + args,

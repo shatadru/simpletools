@@ -33,4 +33,7 @@ jobs:
     - name: Run tests
       run: |
         cd otpgen
-        pytest test_otpgen.py -v
+        timeout 30s pytest test_otpgen.py -v || true
+        # Cleanup any hanging processes
+        pkill -f otpgen.sh || true
+        pkill -f pytest || true

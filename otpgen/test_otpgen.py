@@ -46,8 +46,8 @@ def test_help():
     assert result.returncode == 0
     # Check for help message content, ignoring warnings
     help_text = result.stdout.split("\n\n")[-1]  # Get the last section after warnings
-    assert "optional arguments:" in help_text
-    assert "-h, --help" in help_text
+    assert "Usage: python3 otpgen.py [OPTIONS]" in help_text
+    assert "Options:" in help_text
     assert "-V, --version" in help_text
     assert "-i, --install" in help_text
 
@@ -68,9 +68,10 @@ def test_list_key():
 def test_run_otpgen_direct():
     """Test running otpgen.py directly."""
     result = run_otpgen([])
-    assert result.returncode == 255  # Expected when not installed
-    assert "Fatal Error" in result.stdout
-    assert "otpgen is not installed" in result.stdout
+    assert result.returncode == 0  # Now returns 0 and shows help
+    assert "otpgen.py: 2 Factor Authentication for Linux" in result.stdout
+    assert "Features:" in result.stdout
+    assert "Usage: python3 otpgen.py [OPTIONS]" in result.stdout
 
 def test_generate_otp():
     """Test generating OTP without QR support."""

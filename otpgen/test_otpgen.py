@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 import re
 import signal
+import tempfile
 
 # Test environment
 TEST_ENV = {
@@ -74,21 +75,43 @@ def test_help():
     assert "-V, --version" in result.stdout
     assert "-i, --install" in result.stdout
 
+def test_version():
+    """Test version command."""
+    result = run_otpgen(["--version"])
+    assert result.returncode == 0, f"Version command failed: {result.stdout}"
+    assert "Version:" in result.stdout
+    # Extract version number and verify format
+    version_match = re.search(r"Version:\s*(\d+\.\d+(?:-\d+)?)", result.stdout)
+    assert version_match, "Version number not found in output"
+    version = version_match.group(1)
+    assert re.match(r"^\d+\.\d+(?:-\d+)?$", version), f"Invalid version format: {version}"
+
 def test_install():
     """Test installation."""
-    # Provide password input for installation
+    # Test with valid password
     result = run_otpgen(["--install"], input_text="Test@123\nTest@123\n")
     assert result.returncode == 0, f"Install failed: {result.stdout}"
     assert "Installation successful" in result.stdout
+
+    # Test with invalid password (too short)
+    result = run_otpgen(["--install"], input_text="test\ntest\n")
+    assert result.returncode == 1, f"Install with weak password should fail: {result.stdout}"
+    assert "Password is too short" in result.stdout
 
 def test_list_key():
     """Test listing keys."""
     # First install with password
     run_otpgen(["--install"], input_text="Test@123\nTest@123\n")
-    # List keys with password
+
+    # List keys with correct password
     result = run_otpgen(["--list-key"], input_text="Test@123\n")
     assert result.returncode == 0, f"List key failed: {result.stdout}"
     assert "No 2FA found in keystore" in result.stdout
+
+    # List keys with incorrect password
+    result = run_otpgen(["--list-key"], input_text="WrongPass\n")
+    assert result.returncode == 1, f"List key with wrong password should fail: {result.stdout}"
+    assert "Invalid password" in result.stdout
 
 def test_run_otpgen_direct():
     """Test running otpgen.sh directly."""
@@ -100,14 +123,25 @@ def test_run_otpgen_direct():
     assert result.returncode == 0, f"Version check failed: {result.stdout}"
     assert "Version:" in result.stdout
 
+    # Run with invalid argument
+    result = run_otpgen(["--invalid-arg"])
+    assert result.returncode == 1, f"Invalid argument should fail: {result.stdout}"
+    assert "Unknown option" in result.stdout
+
 def test_generate_otp():
     """Test generating OTP."""
     # First install with password
     run_otpgen(["--install"], input_text="Test@123\nTest@123\n")
-    # Try to generate OTP with password
-    result = run_otpgen(["--gen-key", "1"], input_text="Test@123\n")
-    assert result.returncode == 255, f"Generate OTP failed: {result.stdout}"
-    assert "Unable to generate 2FA token for ID: 1" in result.stdout
+
+    # Try to generate OTP with non-existent ID
+    result = run_otpgen(["--gen-key", "999"], input_text="Test@123\n")
+    assert result.returncode == 1, f"Generate OTP with invalid ID should fail: {result.stdout}"
+    assert "Unable to generate 2FA token for ID: 999" in result.stdout
+
+    # Try to generate OTP with invalid password
+    result = run_otpgen(["--gen-key", "1"], input_text="WrongPass\n")
+    assert result.returncode == 1, f"Generate OTP with wrong password should fail: {result.stdout}"
+    assert "Invalid password" in result.stdout
 
 def test_clean_install():
     """Test clean installation."""
@@ -118,6 +152,25 @@ def test_clean_install():
     result = run_otpgen(["--clean-install"])
     assert result.returncode == 1, f"Clean install failed: {result.stdout}"
     assert "This will remove all existing 2FA tokens!" in result.stdout
+
+def test_invalid_qr_code():
+    """Test handling of invalid QR code."""
+    # First install with password
+    run_otpgen(["--install"], input_text="Test@123\nTest@123\n")
+
+    # Create a temporary invalid QR code file
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
+        temp_file.write(b'invalid qr code data')
+        temp_file_path = temp_file.name
+
+    try:
+        # Try to add invalid QR code
+        result = run_otpgen(["--add-key", temp_file_path], input_text="Test@123\n")
+        assert result.returncode == 1, f"Adding invalid QR code should fail: {result.stdout}"
+        assert "Failed to detect usable QR Code" in result.stdout
+    finally:
+        # Clean up temporary file
+        os.unlink(temp_file_path)
 
 def strip_ansi(text):
     """Strip ANSI escape sequences from text."""

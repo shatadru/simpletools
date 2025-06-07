@@ -69,37 +69,13 @@ jobs:
         }
         pip install pytest pytest-cov tox
 
-    - name: Run tests with QR support (Unix)
-      if: matrix.with-qr && matrix.os != 'windows-latest'
+    - name: Run tests
       env:
         OTPGEN_PASSWORD: "Test@123"
-        WITH_QR: "true"
+        WITH_QR: ${{ matrix.with-qr }}
+        CI: "true"
       run: |
         python -m pytest test_otpgen.py -v
-
-    - name: Run tests with QR support (Windows)
-      if: matrix.with-qr && matrix.os == 'windows-latest'
-      env:
-        OTPGEN_PASSWORD: "Test@123"
-        WITH_QR: "true"
-      run: |
-        python -m pytest test_otpgen.py -v
-
-    - name: Run tests without QR support (Unix)
-      if: matrix.with-qr == false && matrix.os != 'windows-latest'
-      env:
-        OTPGEN_PASSWORD: "Test@123"
-        WITH_QR: "false"
-      run: |
-        python -m pytest test_otpgen.py -v -k "not test_generate_test_qr and not test_add_key and not test_gen_key and not test_remove_key"
-
-    - name: Run tests without QR support (Windows)
-      if: matrix.with-qr == false && matrix.os == 'windows-latest'
-      env:
-        OTPGEN_PASSWORD: "Test@123"
-        WITH_QR: "false"
-      run: |
-        python -m pytest test_otpgen.py -v -k "not test_generate_test_qr and not test_add_key and not test_gen_key and not test_remove_key"
 
     - name: Run tox
       run: |

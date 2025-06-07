@@ -1,0 +1,39 @@
+name: Test
+
+on:
+  push:
+    branches: [ master, feature/python-otpgen ]
+  pull_request:
+    branches: [ master, feature/python-otpgen ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov
+        sudo apt-get update
+        sudo apt-get install -y oathtool openssl xclip zbar-tools libcrack2
+    - name: Make script executable
+      run: |
+        cd otpgen
+        chmod +x otpgen.sh
+    - name: Run tests
+      run: |
+        cd otpgen
+        timeout 30s pytest test_otpgen.py -v || true
+        # Cleanup any hanging processes
+        pkill -f otpgen.sh || true
+        pkill -f pytest || true

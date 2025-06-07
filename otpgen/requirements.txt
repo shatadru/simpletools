@@ -1,0 +1,8 @@
+pyotp>=2.6.0
+cryptography>=3.4.8
+Pillow>=8.3.2
+pyzbar>=0.1.8
+pyperclip>=1.8.2
+requests>=2.25.1
+qrcode>=7.4.2
+pytest>=7.0.0

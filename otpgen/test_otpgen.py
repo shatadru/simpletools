@@ -20,12 +20,16 @@ def run_otpgen(args, env=None):
     else:
         env = {**TEST_ENV, **env}
 
-    return subprocess.run(
-        ["python", "otpgen.py"] + args,
-        capture_output=True,
-        text=True,
-        env=env
-    )
+    try:
+        return subprocess.run(
+            ["python", "otpgen.py"] + args,
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False  # Don't raise exception on non-zero exit
+        )
+    except subprocess.CalledProcessError as e:
+        return e
 
 @pytest.fixture(autouse=True)
 def cleanup():
@@ -43,7 +47,7 @@ def cleanup():
 def test_help():
     """Test help command."""
     result = run_otpgen(["--help"])
-    assert result.returncode == 0
+    assert result.returncode == 0, f"Help command failed: {result.stdout}"
     # Check for help message content, ignoring warnings
     help_text = result.stdout.split("\n\n")[-1]  # Get the last section after warnings
     assert "Usage: python3 otpgen.py [OPTIONS]" in help_text
@@ -54,7 +58,7 @@ def test_help():
 def test_install():
     """Test installation."""
     result = run_otpgen(["--install"])
-    assert result.returncode == 0
+    assert result.returncode == 0, f"Install failed: {result.stdout}"
     assert "Installation successful" in result.stdout
 
 def test_list_key():
@@ -62,13 +66,13 @@ def test_list_key():
     # First install
     run_otpgen(["--install"])
     result = run_otpgen(["--list-key"])
-    assert result.returncode == 0
+    assert result.returncode == 0, f"List key failed: {result.stdout}"
     assert "No 2FA found in keystore" in result.stdout
 
 def test_run_otpgen_direct():
     """Test running otpgen.py directly."""
     result = run_otpgen([])
-    assert result.returncode == 0  # Now returns 0 and shows help
+    assert result.returncode == 0, f"Direct run failed: {result.stdout}"
     assert "otpgen.py: 2 Factor Authentication for Linux" in result.stdout
     assert "Features:" in result.stdout
     assert "Usage: python3 otpgen.py [OPTIONS]" in result.stdout
@@ -78,7 +82,7 @@ def test_generate_otp():
     # First install
     run_otpgen(["--install"])
     result = run_otpgen(["--gen-key", "1"])
-    assert result.returncode == 255  # Should fail since no keys exist
+    assert result.returncode == 255, f"Generate OTP failed: {result.stdout}"
     assert "Unable to generate 2FA token for ID: 1" in result.stdout
 
 @pytest.mark.skip(reason="QR support not implemented yet")
@@ -108,7 +112,7 @@ def test_clean_install():
     # Then try installing again
     # In CI mode, we expect it to fail since it requires user input
     result = run_otpgen(["--clean-install"])
-    assert result.returncode == 1  # Expected to fail in CI mode
+    assert result.returncode == 1, f"Clean install failed: {result.stdout}"
     assert "This will remove all existing 2FA tokens!" in result.stdout
 
 def strip_ansi(text):

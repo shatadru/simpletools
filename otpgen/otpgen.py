@@ -30,6 +30,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import time
 import platform
+import xml.etree.ElementTree as ET
+import zipfile
+import re
+import logging
+from datetime import datetime
 
 # Third-party imports (will be checked and installed if needed)
 try:
@@ -40,10 +45,11 @@ try:
     from PIL import Image
     import pyperclip
     import requests
+    import qrcode
 except ImportError as e:
     print(f"Required package not found: {e}")
     print("Please install required packages:")
-    print("pip install pyotp cryptography pillow pyperclip requests")
+    print("pip install pyotp cryptography pillow pyperclip requests qrcode")
     sys.exit(1)
 
 # Try to import pyzbar, but don't fail if not available
@@ -100,45 +106,30 @@ class Logger:
         """Print question message"""
         print(f"{Colors.CYAN}{Colors.BOLD}Question{Colors.RESET}: {message}")
 
-class OTPManager:
-    """Main OTP Manager class"""
+class OTPGenerator:
+    """Main OTP Generator class with enhanced features."""
 
-    def __init__(self, debug_level: int = 2):
-        self.logger = Logger(debug_level)
-        self.home_dir = Path.home()
-        self.base_dir = self.home_dir / "otpgen"
+    VERSION = "1.0.0"
+    SUPPORTED_APPS = ["freeotp", "google", "microsoft", "aegis"]
+
+    def __init__(self, base_dir: Optional[str] = None):
+        """Initialize OTP Generator with base directory."""
+        self.base_dir = Path(base_dir or os.path.expanduser("~/otpgen"))
         self.keystore_file = self.base_dir / ".secret_list"
-        self.temp_dir = Path(tempfile.mkdtemp())
+        self.backup_dir = self.base_dir / "backups"
+        self._ensure_directories()
+        self._fernet = None
 
-    def __del__(self):
-        """Cleanup temporary directory"""
-        if hasattr(self, 'temp_dir') and self.temp_dir.exists():
-            shutil.rmtree(self.temp_dir)
+    def _ensure_directories(self) -> None:
+        """Ensure required directories exist with proper permissions."""
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.base_dir.chmod(0o700)
+        self.backup_dir.mkdir(parents=True, exist_ok=True)
+        self.backup_dir.chmod(0o700)
 
-    def check_version(self):
-        """Check for script updates"""
-        try:
-            check_file = self.base_dir / ".check_update"
-
-            # Only check once a day
-            if check_file.exists():
-                age = time.time() - check_file.stat().st_mtime
-                if age < 86400:  # 24 hours
-                    self.logger.info("Skipping update check, this is only done once a day...")
-                    return
-
-            self.logger.info("Checking for updates of otpgen.py")
-
-            # This would check the GitHub repo for updates
-            # For now, just create the check file
-            check_file.touch()
-            self.logger.info("Update check completed")
-
-        except Exception as e:
-            self.logger.warning(f"Unable to check for updates: {e}")
-
-    def _derive_key(self, password: str, salt: bytes) -> bytes:
-        """Derive encryption key from password"""
+    def _get_encryption_key(self, password: str) -> bytes:
+        """Generate encryption key from password."""
+        salt = b'otpgen_salt'  # In production, store this securely
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
@@ -147,368 +138,295 @@ class OTPManager:
         )
         return base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
-    def encrypt_data(self, data: str, password: str) -> bool:
-        """Encrypt data with password"""
-        try:
-            salt = os.urandom(16)
-            key = self._derive_key(password, salt)
-            fernet = Fernet(key)
+    def _initialize_encryption(self, password: str) -> None:
+        """Initialize encryption with password."""
+        key = self._get_encryption_key(password)
+        self._fernet = Fernet(key)
 
-            encrypted_data = fernet.encrypt(data.encode())
+    def _encrypt_data(self, data: str) -> str:
+        """Encrypt data using Fernet."""
+        if not self._fernet:
+            raise ValueError("Encryption not initialized")
+        return self._fernet.encrypt(data.encode()).decode()
 
-            # Store salt + encrypted data
-            with open(self.keystore_file, 'wb') as f:
-                f.write(salt + encrypted_data)
+    def _decrypt_data(self, encrypted_data: str) -> str:
+        """Decrypt data using Fernet."""
+        if not self._fernet:
+            raise ValueError("Encryption not initialized")
+        return self._fernet.decrypt(encrypted_data.encode()).decode()
 
-            return True
-        except Exception as e:
-            self.logger.warning(f"Encryption failed: {e}")
-            return False
+    def install(self, password: str) -> None:
+        """Install OTP Generator with initial password."""
+        if self.keystore_file.exists():
+            raise ValueError("OTP Generator already installed")
 
-    def decrypt_data(self, password: str) -> Optional[str]:
-        """Decrypt data with password"""
-        try:
-            with open(self.keystore_file, 'rb') as f:
-                file_data = f.read()
+        self._initialize_encryption(password)
+        self._encrypt_data("[]")  # Initialize empty keystore
+        logger.info("Installation successful")
 
-            salt = file_data[:16]
-            encrypted_data = file_data[16:]
+    def add_token(self, secret: str, issuer: str, account: str,
+                 token_type: str = "totp", counter: int = 0) -> None:
+        """Add a new token to the keystore."""
+        if not self._fernet:
+            raise ValueError("Not initialized. Please install first.")
 
-            key = self._derive_key(password, salt)
-            fernet = Fernet(key)
+        # Validate token type
+        if token_type not in ["totp", "hotp"]:
+            raise ValueError("Invalid token type. Must be 'totp' or 'hotp'")
 
-            decrypted_data = fernet.decrypt(encrypted_data)
-            return decrypted_data.decode()
-        except Exception as e:
-            self.logger.warning("Decryption failed, please re-check your password and try again")
-            return None
-
-    def ask_pass(self):
-        """Ask for password, with support for environment variable in test mode"""
-        mode = "create" if not os.path.exists(self.keystore_file) else "verify"
-
-        # Check for password in environment variable (for testing)
-        if os.environ.get('OTPGEN_PASSWORD'):
-            return os.environ['OTPGEN_PASSWORD']
-
-        if mode == "create":
-            print("\nQuestion: Enter a strong password which will be used to encrypt your tokens...")
-            password = getpass.getpass()
-            print("Question: Re-enter the password again to verify")
-            verify_password = getpass.getpass()
-
-            if password != verify_password:
-                print("Warning: Passwords do not match! Try again")
-                return self.ask_pass()
-
-            if not self.check_password_strength(password):
-                return self.ask_pass()
-
-            return password
-        else:
-            print("Question: Enter keystore password: ")
-            return getpass.getpass()
-
-    def check_password_strength(self, password: str) -> bool:
-        """Check password strength (simplified version)"""
-        if len(password) < 8:
-            self.logger.warning("Password too short, minimum 8 characters required")
-            return False
-
-        has_upper = any(c.isupper() for c in password)
-        has_lower = any(c.islower() for c in password)
-        has_digit = any(c.isdigit() for c in password)
-        has_special = any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password)
-
-        if not (has_upper and has_lower and has_digit):
-            self.logger.warning("Password should contain uppercase, lowercase and digits")
-            return False
-
-        self.logger.info("Password accepted... Do not lose this password")
-        return True
-
-    def check_dependencies(self):
-        """Check if required system dependencies are installed"""
-        missing_deps = []
-
-        # Check for system commands that might be needed
-        system_deps = {
-            'openssl': 'OpenSSL for additional encryption support',
-        }
-
-        for cmd, desc in system_deps.items():
-            if shutil.which(cmd) is None:
-                self.logger.warning(f"Optional dependency missing: {cmd} - {desc}")
-
-    def extract_secret_from_image(self, image_path: str) -> Tuple[str, str, str, str]:
-        """Extract OTP secret from QR code image"""
-        if not ZBAR_AVAILABLE:
-            self.logger.fatal_error("QR code scanning is not available. Please install pyzbar.")
-
-        try:
-            # Open and decode QR code
-            image = Image.open(image_path)
-            decoded_objects = pyzbar.decode(image)
-
-            if not decoded_objects:
-                self.logger.fatal_error("No QR code detected in supplied image")
-
-            # Get the first QR code data
-            qr_data = decoded_objects[0].data.decode('utf-8')
-
-            # Parse the OTP URL
-            parsed_url = urllib.parse.urlparse(qr_data)
-
-            if parsed_url.scheme != 'otpauth':
-                self.logger.fatal_error("Invalid OTP QR code format")
-
-            # Extract components
-            qr_type = parsed_url.netloc.lower()  # totp or hotp
-            path_parts = parsed_url.path.strip('/').split(':')
-
-            if len(path_parts) >= 2:
-                qr_issuer = path_parts[0]
-                qr_user = path_parts[1]
-            else:
-                qr_issuer = "Unknown"
-                qr_user = path_parts[0] if path_parts else "Unknown"
-
-            # Parse query parameters
-            query_params = urllib.parse.parse_qs(parsed_url.query)
-            qr_secret = query_params.get('secret', [''])[0]
-
-            if not qr_secret:
-                self.logger.fatal_error("No secret found in QR code")
-
-            return qr_secret, qr_type, qr_issuer, qr_user
-
-        except Exception as e:
-            self.logger.fatal_error(f"Error processing QR code image: {e}")
-
-    def install(self):
-        """Install OTP generator"""
-        self.logger.info("Checking for required packages...")
-        self.check_dependencies()
-
-        if self.base_dir.exists():
-            self.logger.fatal_error("otpgen already installed. Use --clean-install to reinstall")
-
-        self.logger.info("Creating required files")
-        self.base_dir.mkdir(parents=True, exist_ok=True)
-
-        password = self.ask_pass()
-
-        self.logger.info("Creating encrypted secret store...")
-        if not self.encrypt_data("", password):
-            self.logger.fatal_error("Key store creation failed")
-
-        # Set proper permissions
-        os.chmod(self.base_dir, 0o700)
-        os.chmod(self.keystore_file, 0o600)
-
-        self.logger.success("Installation successful")
-
-    def clean_install(self):
-        """Clean install - remove existing data and reinstall"""
-        self.logger.warning("This will remove all existing 2FA tokens!")
-        input("Press Enter to continue, Ctrl+C to exit...")
-
-        if self.base_dir.exists():
-            shutil.rmtree(self.base_dir)
-
-        self.install()
-
-    def check_install(self):
-        """Check if OTP generator is installed"""
-        if not self.base_dir.exists() or not self.keystore_file.exists():
-            self.logger.fatal_error("otpgen is not installed, please install using -i/--install")
-
-    def add_key(self, image_path: str):
-        """Add new 2FA key from QR code image"""
-        if not image_path:
-            self.logger.fatal_error("Image file not supplied, please add an image file containing QR Code")
-
-        if not Path(image_path).exists():
-            self.logger.fatal_error("File not found, can't add 2FA...")
-
-        self.logger.info("Detecting QR Code from supplied image...")
-
-        qr_secret, qr_type, qr_issuer, qr_user = self.extract_secret_from_image(image_path)
-
-        if qr_type == "totp":
-            self.logger.info("TOTP token detected")
-        elif qr_type == "hotp":
-            self.logger.info("HOTP token detected")
-        else:
-            self.logger.fatal_error("OTP type unsupported! Only TOTP and HOTP are supported")
-
-        # Decrypt existing data
-        password = self.ask_pass()
-        existing_data = self.decrypt_data(password)
-
-        if existing_data is None:
-            self.logger.fatal_error("Wrong password or corrupted keystore")
-
-        # Parse existing entries
-        entries = []
-        if existing_data.strip():
-            for line in existing_data.strip().split('\n'):
-                if line.strip():
-                    entries.append(line.strip().split())
+        # Read existing tokens
+        tokens = json.loads(self._decrypt_data(self.keystore_file.read_text()))
 
         # Check for duplicates
-        for entry in entries:
-            if (len(entry) >= 5 and entry[1] == qr_secret and
-                entry[2] == qr_type and entry[3] == qr_issuer and entry[4] == qr_user):
-                self.logger.warning("2FA is already added in keystore...")
-                self.logger.fatal_error("Not adding duplicate entry...")
+        for token in tokens:
+            if (token["issuer"] == issuer and
+                token["account"] == account and
+                token["secret"] == secret):
+                raise ValueError("Token already exists")
 
-        # Create new entry
-        new_id = len(entries) + 1
-        if qr_type == "hotp":
-            new_entry = [str(new_id), qr_secret, qr_type, qr_issuer, qr_user, "0"]
+        # Add new token
+        tokens.append({
+            "secret": secret,
+            "issuer": issuer,
+            "account": account,
+            "type": token_type,
+            "counter": counter
+        })
+
+        # Save encrypted tokens
+        self.keystore_file.write_text(self._encrypt_data(json.dumps(tokens)))
+        logger.info(f"Added token for {issuer} - {account}")
+
+    def list_tokens(self) -> List[Dict]:
+        """List all tokens in the keystore."""
+        if not self._fernet:
+            raise ValueError("Not initialized. Please install first.")
+
+        return json.loads(self._decrypt_data(self.keystore_file.read_text()))
+
+    def generate_otp(self, token_id: int) -> str:
+        """Generate OTP for a specific token."""
+        if not self._fernet:
+            raise ValueError("Not initialized. Please install first.")
+
+        tokens = json.loads(self._decrypt_data(self.keystore_file.read_text()))
+        if not 0 <= token_id < len(tokens):
+            raise ValueError(f"Invalid token ID: {token_id}")
+
+        token = tokens[token_id]
+        if token["type"] == "totp":
+            totp = pyotp.TOTP(token["secret"])
+            return totp.now()
+        else:  # HOTP
+            hotp = pyotp.HOTP(token["secret"])
+            otp = hotp.at(token["counter"])
+            # Increment counter
+            token["counter"] += 1
+            self.keystore_file.write_text(self._encrypt_data(json.dumps(tokens)))
+            return otp
+
+    def export_tokens(self, format: str = "json", password: Optional[str] = None) -> str:
+        """Export tokens in various formats."""
+        if format not in ["json", "freeotp", "google", "microsoft", "aegis"]:
+            raise ValueError(f"Unsupported export format: {format}")
+
+        tokens = self.list_tokens()
+
+        if format == "json":
+            return json.dumps(tokens, indent=2)
+
+        elif format == "freeotp":
+            # FreeOTP uses a custom XML format
+            root = ET.Element("tokens")
+            for token in tokens:
+                token_elem = ET.SubElement(root, "token")
+                ET.SubElement(token_elem, "secret").text = token["secret"]
+                ET.SubElement(token_elem, "issuer").text = token["issuer"]
+                ET.SubElement(token_elem, "account").text = token["account"]
+                ET.SubElement(token_elem, "type").text = token["type"]
+                ET.SubElement(token_elem, "counter").text = str(token["counter"])
+            return ET.tostring(root, encoding='unicode')
+
+        elif format == "google":
+            # Google Authenticator uses a custom URI format
+            uris = []
+            for token in tokens:
+                uri = f"otpauth://{token['type']}/{token['issuer']}:{token['account']}?"
+                uri += f"secret={token['secret']}&issuer={token['issuer']}"
+                if token["type"] == "hotp":
+                    uri += f"&counter={token['counter']}"
+                uris.append(uri)
+            return "\n".join(uris)
+
+        elif format == "microsoft":
+            # Microsoft Authenticator uses a custom JSON format
+            ms_tokens = []
+            for token in tokens:
+                ms_token = {
+                    "secretKey": token["secret"],
+                    "issuer": token["issuer"],
+                    "name": token["account"],
+                    "type": token["type"].upper(),
+                    "counter": token["counter"] if token["type"] == "hotp" else 0
+                }
+                ms_tokens.append(ms_token)
+            return json.dumps(ms_tokens, indent=2)
+
+        elif format == "aegis":
+            # Aegis uses a custom JSON format with encryption
+            if not password:
+                raise ValueError("Password required for Aegis export")
+
+            aegis_data = {
+                "version": 1,
+                "header": {
+                    "slots": None,
+                    "params": None
+                },
+                "db": {
+                    "version": 1,
+                    "entries": []
+                }
+            }
+
+            for token in tokens:
+                entry = {
+                    "type": token["type"].upper(),
+                    "name": token["account"],
+                    "issuer": token["issuer"],
+                    "secret": token["secret"],
+                    "counter": token["counter"] if token["type"] == "hotp" else 0
+                }
+                aegis_data["db"]["entries"].append(entry)
+
+            return json.dumps(aegis_data, indent=2)
+
+    def import_tokens(self, data: str, format: str, password: Optional[str] = None) -> None:
+        """Import tokens from various formats."""
+        if format not in ["json", "freeotp", "google", "microsoft", "aegis"]:
+            raise ValueError(f"Unsupported import format: {format}")
+
+        if format == "json":
+            tokens = json.loads(data)
+            for token in tokens:
+                self.add_token(
+                    secret=token["secret"],
+                    issuer=token["issuer"],
+                    account=token["account"],
+                    token_type=token["type"],
+                    counter=token.get("counter", 0)
+                )
+
+        elif format == "freeotp":
+            root = ET.fromstring(data)
+            for token_elem in root.findall("token"):
+                self.add_token(
+                    secret=token_elem.find("secret").text,
+                    issuer=token_elem.find("issuer").text,
+                    account=token_elem.find("account").text,
+                    token_type=token_elem.find("type").text,
+                    counter=int(token_elem.find("counter").text)
+                )
+
+        elif format == "google":
+            for line in data.strip().split("\n"):
+                match = re.match(r"otpauth://(totp|hotp)/([^:]+):([^?]+)\?(.+)", line)
+                if match:
+                    token_type, issuer, account, params = match.groups()
+                    secret = re.search(r"secret=([^&]+)", params).group(1)
+                    counter = int(re.search(r"counter=(\d+)", params).group(1)) if "counter=" in params else 0
+                    self.add_token(secret, issuer, account, token_type, counter)
+
+        elif format == "microsoft":
+            tokens = json.loads(data)
+            for token in tokens:
+                self.add_token(
+                    secret=token["secretKey"],
+                    issuer=token["issuer"],
+                    account=token["name"],
+                    token_type=token["type"].lower(),
+                    counter=token.get("counter", 0)
+                )
+
+        elif format == "aegis":
+            if not password:
+                raise ValueError("Password required for Aegis import")
+
+            data = json.loads(data)
+            for entry in data["db"]["entries"]:
+                self.add_token(
+                    secret=entry["secret"],
+                    issuer=entry["issuer"],
+                    account=entry["name"],
+                    token_type=entry["type"].lower(),
+                    counter=entry.get("counter", 0)
+                )
+
+    def create_backup(self, password: str) -> str:
+        """Create an encrypted backup of the keystore."""
+        if not self._fernet:
+            raise ValueError("Not initialized. Please install first.")
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_file = self.backup_dir / f"backup_{timestamp}.enc"
+
+        # Create backup with additional metadata
+        backup_data = {
+            "version": self.VERSION,
+            "timestamp": timestamp,
+            "tokens": json.loads(self._decrypt_data(self.keystore_file.read_text()))
+        }
+
+        # Encrypt and save backup
+        backup_file.write_text(self._encrypt_data(json.dumps(backup_data)))
+        logger.info(f"Created backup: {backup_file}")
+        return str(backup_file)
+
+    def restore_backup(self, backup_file: str, password: str) -> None:
+        """Restore from an encrypted backup."""
+        backup_path = Path(backup_file)
+        if not backup_path.exists():
+            raise ValueError(f"Backup file not found: {backup_file}")
+
+        # Initialize encryption with backup password
+        self._initialize_encryption(password)
+
+        # Read and decrypt backup
+        backup_data = json.loads(self._decrypt_data(backup_path.read_text()))
+
+        # Verify backup version
+        if backup_data["version"] != self.VERSION:
+            logger.warning(f"Backup version {backup_data['version']} differs from current version {self.VERSION}")
+
+        # Restore tokens
+        self.keystore_file.write_text(self._encrypt_data(json.dumps(backup_data["tokens"])))
+        logger.info(f"Restored backup from {backup_file}")
+
+    def generate_qr(self, token_id: int, output_file: Optional[str] = None) -> None:
+        """Generate QR code for a token."""
+        tokens = self.list_tokens()
+        if not 0 <= token_id < len(tokens):
+            raise ValueError(f"Invalid token ID: {token_id}")
+
+        token = tokens[token_id]
+        uri = f"otpauth://{token['type']}/{token['issuer']}:{token['account']}?"
+        uri += f"secret={token['secret']}&issuer={token['issuer']}"
+        if token["type"] == "hotp":
+            uri += f"&counter={token['counter']}"
+
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(uri)
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color="black", back_color="white")
+        if output_file:
+            img.save(output_file)
         else:
-            new_entry = [str(new_id), qr_secret, qr_type, qr_issuer, qr_user]
-
-        entries.append(new_entry)
-
-        # Save updated data
-        new_data = '\n'.join([' '.join(entry) for entry in entries])
-
-        if self.encrypt_data(new_data, password):
-            self.logger.success("New 2FA added successfully")
-        else:
-            self.logger.fatal_error("Failed to add 2FA")
-
-    def list_keys(self):
-        """List all stored 2FA keys"""
-        self.check_install()
-
-        password = self.ask_pass()
-        data = self.decrypt_data(password)
-
-        if data is None:
-            self.logger.fatal_error("Wrong password or corrupted keystore")
-
-        if not data.strip():
-            self.logger.warning("No 2FA found in keystore, use -a or --add-key to add new 2FA")
-            return
-
-        # Print header
-        print(f"{'ID':<2} {'Secret':<30} {'TYPE':<6} {'ISSUER':<20} {'USER':<30} {'Counter(HOTP)':<15}")
-
-        # Print entries
-        for line in data.strip().split('\n'):
-            if line.strip():
-                parts = line.strip().split()
-                if len(parts) >= 5:
-                    entry_id = parts[0]
-                    secret_masked = "••••••••••••••••••"
-                    otp_type = parts[2]
-                    issuer = parts[3]
-                    user = parts[4]
-                    counter = parts[5] if len(parts) > 5 else ""
-
-                    print(f"{entry_id:<2} {secret_masked:<30} {otp_type:<6} {issuer:<20} {user:<30} {counter:<15}")
-
-    def generate_key(self, key_id: Optional[str] = None):
-        """Generate OTP for specified key ID"""
-        password = self.ask_pass()
-        data = self.decrypt_data(password)
-
-        if data is None:
-            self.logger.fatal_error("Wrong password or corrupted keystore")
-
-        if not key_id:
-            self.list_keys()
-            key_id = input("Which 2FA do you want to select? ")
-
-        # Find the entry
-        entries = []
-        selected_entry = None
-        entry_index = -1
-
-        for i, line in enumerate(data.strip().split('\n')):
-            if line.strip():
-                parts = line.strip().split()
-                entries.append(parts)
-                if parts[0] == key_id:
-                    selected_entry = parts
-                    entry_index = i
-
-        if not selected_entry:
-            self.logger.fatal_error(f"Unable to generate 2FA token for ID: {key_id}")
-
-        secret = selected_entry[1]
-        token_type = selected_entry[2]
-
-        try:
-            if token_type == "totp":
-                totp = pyotp.TOTP(secret)
-                token = totp.now()
-            elif token_type == "hotp":
-                counter = int(selected_entry[5]) if len(selected_entry) > 5 else 0
-                hotp = pyotp.HOTP(secret)
-                token = hotp.at(counter)
-
-                # Update counter
-                selected_entry[5] = str(counter + 1)
-                entries[entry_index] = selected_entry
-
-                # Save updated data
-                new_data = '\n'.join([' '.join(entry) for entry in entries])
-                if not self.encrypt_data(new_data, password):
-                    self.logger.fatal_error("Error incrementing HOTP counter")
-            else:
-                self.logger.fatal_error(f"Unsupported token type: {token_type}")
-
-            self.logger.success(f"OTP: {token}")
-
-            # Try to copy to clipboard
+            # Display QR code in terminal if possible
             try:
-                pyperclip.copy(token)
-                self.logger.success("OTP has been copied to clipboard, Ctrl+V to paste")
+                img.show()
             except Exception:
-                self.logger.warning("OTP was not copied to clipboard")
-
-        except Exception as e:
-            self.logger.fatal_error(f"Error generating OTP: {e}")
-
-    def remove_key(self, key_id: Optional[str] = None):
-        """Remove 2FA key"""
-        password = self.ask_pass()
-        data = self.decrypt_data(password)
-
-        if data is None:
-            self.logger.fatal_error("Wrong password or corrupted keystore")
-
-        if not key_id:
-            self.list_keys()
-            key_id = input("Which 2FA do you want to remove? ")
-
-        entries = []
-        found = False
-
-        for line in data.strip().split('\n'):
-            if line.strip():
-                parts = line.strip().split()
-                if parts[0] != key_id:
-                    entries.append(parts)
-                else:
-                    found = True
-
-        if not found:
-            self.logger.fatal_error(f"Unable to find 2FA with ID: {key_id}")
-
-        input(f"Are you sure you want to remove 2FA with ID: {key_id}? Press Enter to continue, Ctrl+C to exit...")
-
-        # Save updated data
-        new_data = '\n'.join([' '.join(entry) for entry in entries])
-
-        if self.encrypt_data(new_data, password):
-            self.logger.success("2FA removed successfully")
-        else:
-            self.logger.fatal_error("Failed to remove 2FA")
+                logger.warning("Could not display QR code. Please specify an output file.")
 
 def print_help():
     """Print help message"""
@@ -528,12 +446,17 @@ Usage: python3 otpgen.py [OPTIONS]
 
 Options:
   -V, --version              Print version
-  -i, --install              Install otpgen in system
+  -i, --install              Install otpgen
   --clean-install            Clean any local data and re-install
-  -a, --add-key FILE         Add a new 2FA from image containing QR Code
-  -l, --list-key             List all available 2FA stored in the system
-  -g, --gen-key [ID]         Generate one time password
-  -r, --remove-key [ID]      Remove a 2FA token from keystore
+  -a, --add-token SECRET ISSUER ACCOUNT TYPE
+                             Add a new token (TYPE: totp or hotp)
+  -l, --list-tokens          List all tokens
+  -g, --generate ID          Generate OTP for token ID
+  -e, --export FORMAT        Export tokens in specified format
+  -I, --import FORMAT FILE   Import tokens from specified format
+  -b, --backup               Create backup
+  -r, --restore FILE         Restore from backup file
+  -q, --qr ID                Generate QR code for token ID
   -d, --debug LEVEL          Set debug level (0-4, default: 2)
   -s, --silent               Same as "--debug 0"
   -h, --help                 Show this help message
@@ -548,67 +471,111 @@ Link: https://github.com/shatadru/simpletools
     print(help_text)
 
 def main():
-    """Main function"""
-    parser = argparse.ArgumentParser(description='OTP Generator - 2FA for Linux', add_help=False)
-
-    parser.add_argument('-V', '--version', action='store_true', help='Print version')
-    parser.add_argument('-i', '--install', action='store_true', help='Install otpgen')
-    parser.add_argument('--clean-install', action='store_true', help='Clean install')
-    parser.add_argument('-a', '--add-key', metavar='FILE', help='Add 2FA from QR code image')
-    parser.add_argument('-l', '--list-key', action='store_true', help='List all 2FA keys')
-    parser.add_argument('-g', '--gen-key', metavar='ID', nargs='?', const='', help='Generate OTP')
-    parser.add_argument('-r', '--remove-key', metavar='ID', nargs='?', const='', help='Remove 2FA key')
-    parser.add_argument('-d', '--debug', type=int, choices=[0,1,2,3,4], default=2, help='Debug level')
-    parser.add_argument('-s', '--silent', action='store_true', help='Silent mode')
-    parser.add_argument('-h', '--help', action='store_true', help='Show help')
+    """Main entry point for the OTP Generator."""
+    parser = argparse.ArgumentParser(description="OTP Generator - A secure command-line tool for managing 2FA tokens")
+    parser.add_argument("--version", action="store_true", help="Show version")
+    parser.add_argument("--install", action="store_true", help="Install OTP Generator")
+    parser.add_argument("--clean-install", action="store_true", help="Clean any local data and re-install")
+    parser.add_argument("--add-token", nargs=4, metavar=("SECRET", "ISSUER", "ACCOUNT", "TYPE"),
+                       help="Add a new token (TYPE: totp or hotp)")
+    parser.add_argument("--list-tokens", action="store_true", help="List all tokens")
+    parser.add_argument("--generate", type=int, metavar="ID", help="Generate OTP for token ID")
+    parser.add_argument("--export", choices=OTPGenerator.SUPPORTED_APPS + ["json"],
+                       help="Export tokens in specified format")
+    parser.add_argument("--import", dest="import_format", choices=OTPGenerator.SUPPORTED_APPS + ["json"],
+                       help="Import tokens from specified format")
+    parser.add_argument("--import-file", help="File to import tokens from")
+    parser.add_argument("--backup", action="store_true", help="Create backup")
+    parser.add_argument("--restore", help="Restore from backup file")
+    parser.add_argument("--qr", type=int, metavar="ID", help="Generate QR code for token ID")
+    parser.add_argument("--qr-file", help="Output file for QR code")
+    parser.add_argument("-d", "--debug", type=int, choices=[0, 1, 2, 3, 4], default=2,
+                      help="Debug level (0: Silent, 1: Error, 2: Warning, 3: Info, 4: Debug)")
+    parser.add_argument("-s", "--silent", action="store_true", help="Same as --debug 0")
 
     args = parser.parse_args()
 
-    if args.help:
-        print_help()
-        return
+    try:
+        otp = OTPGenerator()
 
-    if args.version:
-        print(f"Version: {VERSION}")
-        return
+        if args.version:
+            print(f"OTP Generator version {OTPGenerator.VERSION}")
+            return
 
-    # Set debug level
-    debug_level = 0 if args.silent else args.debug
+        if args.install:
+            password = getpass.getpass("Enter password for keystore: ")
+            otp.install(password)
+            return
 
-    # Create OTP manager
-    otp_manager = OTPManager(debug_level)
+        if args.clean_install:
+            if otp.base_dir.exists():
+                shutil.rmtree(otp.base_dir)
+            otp.install(password)
+            return
 
-    # Check for updates (only if not silent)
-    if debug_level > 0:
-        otp_manager.check_version()
+        if args.add_token:
+            secret, issuer, account, token_type = args.add_token
+            password = getpass.getpass("Enter keystore password: ")
+            otp._initialize_encryption(password)
+            otp.add_token(secret, issuer, account, token_type)
+            return
 
-    # Execute commands
-    if args.install:
-        otp_manager.install()
-    elif args.clean_install:
-        otp_manager.clean_install()
-    elif args.add_key:
-        otp_manager.check_install()
-        otp_manager.add_key(args.add_key)
-    elif args.list_key:
-        otp_manager.list_keys()
-    elif args.gen_key is not None:
-        otp_manager.check_install()
-        key_id = args.gen_key if args.gen_key else None
-        otp_manager.generate_key(key_id)
-    elif args.remove_key is not None:
-        otp_manager.check_install()
-        key_id = args.remove_key if args.remove_key else None
-        otp_manager.remove_key(key_id)
-    else:
-        print_help()
+        if args.list_tokens:
+            password = getpass.getpass("Enter keystore password: ")
+            otp._initialize_encryption(password)
+            tokens = otp.list_tokens()
+            for i, token in enumerate(tokens):
+                print(f"{i}: {token['issuer']} - {token['account']} ({token['type']})")
+            return
+
+        if args.generate is not None:
+            password = getpass.getpass("Enter keystore password: ")
+            otp._initialize_encryption(password)
+            otp_code = otp.generate_otp(args.generate)
+            print(f"OTP: {otp_code}")
+            return
+
+        if args.export:
+            password = getpass.getpass("Enter keystore password: ")
+            otp._initialize_encryption(password)
+            export_data = otp.export_tokens(args.export, password)
+            print(export_data)
+            return
+
+        if args.import_format:
+            if not args.import_file:
+                print("Error: --import-file required for import")
+                return
+            password = getpass.getpass("Enter keystore password: ")
+            otp._initialize_encryption(password)
+            with open(args.import_file) as f:
+                import_data = f.read()
+            otp.import_tokens(import_data, args.import_format, password)
+            return
+
+        if args.backup:
+            password = getpass.getpass("Enter keystore password: ")
+            otp._initialize_encryption(password)
+            backup_file = otp.create_backup(password)
+            print(f"Backup created: {backup_file}")
+            return
+
+        if args.restore:
+            password = getpass.getpass("Enter backup password: ")
+            otp.restore_backup(args.restore, password)
+            return
+
+        if args.qr is not None:
+            password = getpass.getpass("Enter keystore password: ")
+            otp._initialize_encryption(password)
+            otp.generate_qr(args.qr, args.qr_file)
+            return
+
+        parser.print_help()
+
+    except Exception as e:
+        logger.error(str(e))
+        sys.exit(1)
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\nOperation cancelled by user")
-        sys.exit(130)
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        sys.exit(1)
+    main()

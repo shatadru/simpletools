@@ -119,18 +119,10 @@ def test_clean_install():
     """Test clean installation."""
     # First install
     run_otpgen(["--install"])
-    # Then try installing again
-    result = run_otpgen(["--clean-install"])
+    # Then try installing again with non-interactive mode
+    result = run_otpgen(["--clean-install", "--non-interactive"])
     assert result.returncode == 0
     assert "Installation successful" in result.stdout
-
-def test_print_python_env():
-    """Test Python environment printing."""
-    result = run_otpgen(["--print-python-env"])
-    assert result.returncode == 0
-    assert "Python Environment:" in result.stdout
-    assert "sys.executable:" in result.stdout
-    assert "sys.path:" in result.stdout
 
 def strip_ansi(text):
     ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')

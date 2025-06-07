@@ -26,6 +26,10 @@ jobs:
         pip install pytest pytest-cov
         sudo apt-get update
         sudo apt-get install -y oathtool openssl xclip zbar-tools libcrack2
+    - name: Make script executable
+      run: |
+        cd otpgen
+        chmod +x otpgen.sh
     - name: Run tests
       run: |
         cd otpgen

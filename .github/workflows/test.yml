@@ -75,7 +75,11 @@ jobs:
         WITH_QR: ${{ matrix.with-qr }}
         CI: "true"
       run: |
-        python -m pytest test_otpgen.py -v
+        if [ "${{ matrix.with-qr }}" = "true" ]; then
+          python -m pytest test_otpgen.py -v
+        else
+          python -m pytest test_otpgen.py -v -k "not test_generate_test_qr and not test_add_key and not test_gen_key and not test_remove_key"
+        fi
 
     - name: Run tox
       run: |

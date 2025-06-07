@@ -49,7 +49,8 @@ jobs:
       run: |
         brew install zbar
 
-    - name: Install Python dependencies
+    - name: Install Python dependencies (Unix)
+      if: matrix.os != 'windows-latest'
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
@@ -58,16 +59,42 @@ jobs:
         fi
         pip install pytest pytest-cov tox
 
-    - name: Run tests with QR support
-      if: matrix.with-qr
+    - name: Install Python dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        if ("${{ matrix.with-qr }}" -eq "true") {
+          pip install pyzbar
+        }
+        pip install pytest pytest-cov tox
+
+    - name: Run tests with QR support (Unix)
+      if: matrix.with-qr && matrix.os != 'windows-latest'
       env:
         OTPGEN_PASSWORD: "Test@123"
         WITH_QR: "true"
       run: |
         python -m pytest test_otpgen.py -v
 
-    - name: Run tests without QR support
-      if: matrix.with-qr == false
+    - name: Run tests with QR support (Windows)
+      if: matrix.with-qr && matrix.os == 'windows-latest'
+      env:
+        OTPGEN_PASSWORD: "Test@123"
+        WITH_QR: "true"
+      run: |
+        python -m pytest test_otpgen.py -v
+
+    - name: Run tests without QR support (Unix)
+      if: matrix.with-qr == false && matrix.os != 'windows-latest'
+      env:
+        OTPGEN_PASSWORD: "Test@123"
+        WITH_QR: "false"
+      run: |
+        python -m pytest test_otpgen.py -v -k "not test_generate_test_qr and not test_add_key and not test_gen_key and not test_remove_key"
+
+    - name: Run tests without QR support (Windows)
+      if: matrix.with-qr == false && matrix.os == 'windows-latest'
       env:
         OTPGEN_PASSWORD: "Test@123"
         WITH_QR: "false"

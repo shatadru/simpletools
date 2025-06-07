@@ -8,6 +8,7 @@ A command-line tool for generating 2FA codes on Linux systems. This tool allows 
 * Support for both HOTP and TOTP based tokens
 * Add multiple accounts/2FA, list, remove and generate 2FA tokens
 * Supports: Fedora, Ubuntu, Debian, RHEL (more to be added including CentOS, Manjaro, Mint)
+* Tested with Python 3.9, 3.10, 3.11, and 3.12
 
 ## Installation
 
